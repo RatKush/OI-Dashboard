@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OI Dashboard</title>
+
+  <!-- ─────────────────────────────────────────────────────────────────
+       DEPENDENCIES
+       SheetJS  — parses uploaded .xlsx / .xls workbooks in the browser
+       Chart.js — renders OI-over-time line charts
+  ───────────────────────────────────────────────────────────────────── -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+  <style>
+    /* ── Reset ───────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Design tokens ───────────────────────────────────────────── */
+    :root {
+      --bg-page:        #f4f4f2;
+      --bg-surface:     #ffffff;
+      --bg-muted:       #f0efe8;
+      --text-primary:   #1a1a18;
+      --text-secondary: #6b6b66;
+      --text-tertiary:  #9b9b95;
+      --border-subtle:  rgba(0,0,0,0.08);
+      --border-medium:  rgba(0,0,0,0.14);
+      --radius-sm:      6px;
+      --radius-md:      9px;
+      --pos-dark:       #085041;
+      --pos-mid:        #0f6e56;
+      --neg-dark:       #501313;
+      --neg-mid:        #a32d2d;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .shell { max-width: 1500px; margin: 0 auto; padding: 20px 18px 48px; }
+
+    /* ── Top bar ─────────────────────────────────────────────────── */
+    .topbar { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .topbar h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+    .topbar-sub { font-size: 11px; color: var(--text-tertiary); }
+
+    /* ── Controls ────────────────────────────────────────────────── */
+    .controls {
+      display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap;
+      padding: 12px 14px; background: var(--bg-surface);
+      border-radius: var(--radius-md); border: 0.5px solid var(--border-subtle);
+      margin-bottom: 14px;
+    }
+    .ctrl-group { display: flex; flex-direction: column; gap: 4px; }
+    .ctrl-label { font-size: 10px; font-weight: 500; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.4px; }
+
+    select, input[type="number"] {
+      font-family: inherit; font-size: 12px;
+      padding: 5px 9px; border: 0.5px solid var(--border-medium);
+      border-radius: var(--radius-sm); background: var(--bg-muted);
+      color: var(--text-primary); cursor: pointer;
+    }
+    select {
+      padding-right: 26px; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b6b66'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+    }
+    select:focus, input[type="number"]:focus { outline: 2px solid #378ADD; outline-offset: 1px; }
+    input[type="number"] { width: 60px; }
+
+    .file-btn {
+      font-family: inherit; font-size: 12px; padding: 5px 10px;
+      border: 0.5px dashed var(--border-medium); border-radius: var(--radius-sm);
+      background: transparent; color: var(--text-secondary); cursor: pointer;
+    }
+    .file-btn:hover { background: var(--bg-muted); }
+
+    .tabs { display: flex; gap: 3px; flex-wrap: wrap; }
+    .tab-btn {
+      font-family: inherit; font-size: 11px; padding: 4px 10px;
+      border: 0.5px solid var(--border-medium); border-radius: var(--radius-sm);
+      background: transparent; color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+    }
+    .tab-btn:hover { background: var(--bg-muted); }
+    .tab-btn.active { background: #e6f1fb; color: #0c447c; border-color: #85b7eb; font-weight: 500; }
+
+    /* ── Upload prompt (shown when no file loaded) ───────────────── */
+    .upload-prompt {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px; padding: 60px 20px;
+      background: var(--bg-surface); border: 1.5px dashed var(--border-medium);
+      border-radius: var(--radius-md); color: var(--text-tertiary); text-align: center;
+    }
+    .upload-prompt strong { font-size: 15px; color: var(--text-secondary); }
+    .upload-prompt p { font-size: 12px; max-width: 380px; line-height: 1.6; }
+
+    /* ── Status banner ───────────────────────────────────────────── */
+    .status-bar { padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; margin-bottom: 12px; display: none; }
+    .status-bar.show  { display: block; }
+    .status-bar.info  { background: #e6f1fb; color: #0c447c; border: 0.5px solid #85b7eb; }
+    .status-bar.error { background: #fcebeb; color: #791f1f; border: 0.5px solid #f09595; }
+
+    /* ── Date context ────────────────────────────────────────────── */
+    .date-banner { font-size: 11px; color: var(--text-tertiary); margin-bottom: 10px; padding: 0 2px; }
+
+    /* ── Table ───────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; border-radius: var(--radius-md); border: 0.5px solid var(--border-subtle); background: var(--bg-surface); }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+
+    thead tr:first-child th {
+      font-size: 10px; font-weight: 600; color: var(--text-tertiary);
+      text-align: right; padding: 7px 7px 3px; background: var(--bg-muted);
+      border-bottom: 0.5px solid var(--border-subtle); white-space: nowrap;
+      text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    thead tr:first-child th:first-child { text-align: left; }
+
+    thead tr.sub-hdr th {
+      font-size: 10px; font-weight: 500; color: var(--text-tertiary);
+      padding: 2px 7px 5px; background: var(--bg-muted);
+      border-bottom: 0.5px solid var(--border-medium); text-align: right;
+    }
+    thead tr.sub-hdr th:first-child { text-align: left; }
+
+    .period-start { border-left: 0.5px solid var(--border-subtle) !important; }
+
+    td { text-align: right; padding: 4px 7px; border-bottom: 0.5px solid var(--border-subtle); font-variant-numeric: tabular-nums; }
+    td:first-child { text-align: left; font-weight: 500; }
+    tbody tr:hover td { background: rgba(0,0,0,0.018); }
+
+    /* Pack header rows */
+    tr.pack-hdr td { font-weight: 600; font-size: 11px; padding: 6px 7px 5px; }
+    td.contract-name { padding-left: 20px; font-weight: 400; color: var(--text-secondary); }
+
+    .pos { color: var(--pos-mid); }
+    .neg { color: var(--neg-mid); }
+
+    /* ── Chart view ──────────────────────────────────────────────── */
+    .charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; }
+    .chart-card { background: var(--bg-surface); border: 0.5px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 14px 10px; }
+    .chart-card-title { font-size: 11px; font-weight: 600; margin-bottom: 8px; padding-left: 6px; }
+    .chart-canvas-wrap { position: relative; height: 180px; }
+
+    /* ── Heatmap legend ──────────────────────────────────────────── */
+    .heatmap-legend { display: flex; gap: 8px; margin-top: 10px; font-size: 10px; align-items: center; color: var(--text-tertiary); flex-wrap: wrap; }
+    .heatmap-legend span { padding: 2px 8px; border-radius: 4px; }
+
+    @media (max-width: 640px) {
+      .controls { gap: 10px; }
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <h1 id="page-title">OI Dashboard</h1>
+    <span class="topbar-sub">Open interest analysis across the futures curve</span>
+  </div>
+
+  <div id="status-bar" class="status-bar"></div>
+
+  <!-- ── Controls (always visible) ── -->
+  <div class="controls">
+<!--
+    <!- File upload — primary entry point --
+    <div class="ctrl-group">
+      <span class="ctrl-label">Excel file</span>
+      <label class="file-btn">
+        Choose file
+        <input type="file" id="file-inp" accept=".xlsx,.xls,.xlsm" style="display:none" />
+      </label>
+    </div>-->
+
+    <!-- How many leading sheets are market-data sheets 
+    <div class="ctrl-group" title="Only the first N worksheets are parsed as market data. Sheets beyond this are ignored (background / config tabs).">
+      <span class="ctrl-label">Data sheets limit</span>
+      <input type="number" id="sheet-limit" value="10" min="1" max="50" />
+    </div>-->
+
+    <!-- Market selector (populated after file load) -->
+    <div class="ctrl-group" id="market-ctrl" style="display:none">
+      <span class="ctrl-label">Market</span>
+      <select id="sheet-sel" style="min-width:150px; max-width:220px;"></select>
+    </div>
+
+    <!-- Period selector -->
+    <div class="ctrl-group" id="period-ctrl" style="display:none">
+      <span class="ctrl-label">Period</span>
+      <div class="tabs" id="period-tabs"></div>
+    </div>
+
+    <!-- Pack filter (populated after file load) -->
+    <div class="ctrl-group" id="pack-ctrl" style="display:none">
+      <span class="ctrl-label">Pack</span>
+      <div class="tabs" id="pack-tabs"></div>
+    </div>
+
+    <!-- View toggle -->
+    <div class="ctrl-group" id="view-ctrl" style="display:none" style="margin-left:auto">
+      <span class="ctrl-label">View</span>
+      <div class="tabs">
+        <button class="tab-btn active" data-view="table">Table</button>
+        <button class="tab-btn" data-view="chart">Chart</button>
+        <button class="tab-btn" data-view="heatmap">Heatmap</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="date-banner" id="date-banner"></div>
+  <div id="content"></div>
+
+</div>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   PACK PALETTE
+   ─────────────────────────────────────────────────────────────────────
+   These are the conventional colour names for quarterly futures packs:
+     Pack 1 (contracts  1-4)  = White
+     Pack 2 (contracts  5-8)  = Red
+     Pack 3 (contracts  9-12) = Green
+     Pack 4 (contracts 13-16) = Blue
+     Pack 5 (contracts 17-20) = Gold
+     Pack 6 (contracts 21-24) = Purple
+     Pack 7 (contracts 25-28) = Silver
+     Pack 8 (contracts 29-32) = Copper
+
+   Each entry has a hex accent, a light background tint (bg), dark text
+   on that tint (txt), and a softer border colour (bdr) for filter pills.
+   The list is ordered; pack membership is assigned positionally after
+   tickers are discovered from the sheet (every 4 contracts = one pack).
+═══════════════════════════════════════════════════════════════════════ */
+const PACK_PALETTE = [
+  { name:'White',  hex:'#888780', bg:'#F1EFE8', txt:'#444441', bdr:'#B4B2A9' },
+  { name:'Red',    hex:'#E24B4A', bg:'#FCEBEB', txt:'#791F1F', bdr:'#F09595' },
+  { name:'Green',  hex:'#639922', bg:'#EAF3DE', txt:'#27500A', bdr:'#C0DD97' },
+  { name:'Blue',   hex:'#378ADD', bg:'#E6F1FB', txt:'#0C447C', bdr:'#B5D4F4' },
+  { name:'Gold',   hex:'#BA7517', bg:'#FAEEDA', txt:'#633806', bdr:'#FAC775' },
+  { name:'Purple', hex:'#7F77DD', bg:'#EEEDFE', txt:'#3C3489', bdr:'#CECBF6' },
+  { name:'Silver', hex:'#888780', bg:'#F1EFE8', txt:'#5F5E5A', bdr:'#D3D1C7' },
+  { name:'Copper', hex:'#D85A30', bg:'#FAECE7', txt:'#4A1B0C', bdr:'#F5C4B3' },
+];
+
+/* Comparison windows (trading days) */
+const PERIODS = [
+  { label:'1d',  days:1  },
+  { label:'2d',  days:2  },
+  { label:'3d',  days:3  },
+  { label:'5d',  days:5  },
+  { label:'11d', days:11 },
+];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   APPLICATION STATE
+   ─────────────────────────────────────────────────────────────────────
+   sheets       — keyed by worksheet name; each value is:
+                  { dates: string[], tickers: string[], data: { [ticker]: number[] }, packs: PackDef[] }
+   packs are derived dynamically from the tickers present in the sheet,
+   grouped in sets of 4 in the order they appear.
+═══════════════════════════════════════════════════════════════════════ */
+const STATE = {
+  sheets:         {},      // populated on file load
+  activeSheet:    null,    // currently selected worksheet name
+  activePeriod:   1,       // currently selected comparison window (days)
+  activePack:     'All',   // 'All' or a pack name
+  activeView:     'table', // 'table' | 'chart' | 'heatmap'
+  chartInstances: {},      // Chart.js instances — destroyed before re-render
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PACK BUILDER
+   ─────────────────────────────────────────────────────────────────────
+   Given the ordered list of ticker strings extracted from a sheet,
+   groups them into packs of 4 and assigns a colour from PACK_PALETTE.
+   Any extra contracts that don't fill a complete pack of 4 are still
+   shown as a partial pack (so no data is silently dropped).
+═══════════════════════════════════════════════════════════════════════ */
+function buildPacks(tickers) {
+  const packs = [];
+  for (let i = 0; i < tickers.length; i += 4) {
+    const slice     = tickers.slice(i, i + 4);
+    const paletteIdx = Math.floor(i / 4);
+    const palette    = PACK_PALETTE[paletteIdx] || {
+      /* Fallback palette for markets with more than 8 packs */
+      name: `Pack ${paletteIdx + 1}`,
+      hex: '#888780', bg: '#F1EFE8', txt: '#5F5E5A', bdr: '#D3D1C7',
+    };
+    packs.push({ ...palette, contracts: slice });
+  }
+  return packs;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   EXCEL PARSER
+   ─────────────────────────────────────────────────────────────────────
+   Reads an ArrayBuffer produced by FileReader.
+   Only the first `limit` sheets are treated as market data; anything
+   beyond that is ignored (background / config / notes tabs).
+
+   Expected sheet layout:
+     Row 1  : header — col A = label (e.g. "Ticker"), cols B+ = dates
+     Rows 2+: col A  = contract name (e.g. "SFR1 Comdty" or "SFR1"),
+              cols B+ = OI numbers aligned with the date headers
+
+   Dates are extracted exactly as SheetJS returns them:
+     · If SheetJS already parsed them as JS Date objects → ISO string
+     · If they are Excel serial numbers              → converted via SSF
+     · If they are plain strings                     → used as-is
+═══════════════════════════════════════════════════════════════════════ */
+
+
+function parseWorkbook(arrayBuffer) {
+  const wb    = XLSX.read(arrayBuffer, { type:'array', cellDates: true });
+  const limit = parseInt(document.getElementById('sheet-limit').value, 10) || 10;
+  const result = {};
+
+  wb.SheetNames.slice(0, limit).forEach(sheetName => {
+    const ws   = wb.Sheets[sheetName];
+    /* raw: rows × cols, dates preserved as JS Date objects when cellDates:true */
+    const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'', raw:false });
+
+    if (!rows || rows.length < 2) return;
+
+    const cleanedRows = rows.map(row => [
+      row[0],
+      ...row.slice(2)
+    ]);
+
+    const headerRow = cleanedRows.find(r => r.some(cell => cell !== ''));
+
+    /* ── Extract dates from header (columns 1 onwards) ── */
+    const dates = [];
+    for (let c = 1; c < headerRow.length; c++) {
+      const cell = headerRow[c];
+      if (!cell) continue;
+      /* SheetJS with cellDates:true returns formatted strings for date cells */
+      dates.push(String(cell).split('T')[0].trim());
+    }
+    if (dates.length === 0) return;
+
+    /* ── Extract tickers and OI rows ── */
+    const tickers = [];
+    const data    = {};
+
+    for (let r = 1; r < cleanedRows.length; r++) {
+      const row = cleanedRows[r];
+      if (!row[0]) continue;
+
+      /*
+        Normalise ticker name:
+          "SFR1 Comdty"  → "SFR1"
+          "ER1 Comdty"   → "ER1"
+          "SONIA1"       → "SONIA1"
+        We strip the Bloomberg " Comdty" suffix if present, then trim.
+      */
+      const ticker = String(row[0]).replace(/\s+Comdty\s*$/i, '').trim();
+      if (!ticker) continue;
+
+      /* Collect OI values aligned to the date columns */
+      const values = [];
+      for (let c = 1; c <= dates.length; c++) {
+        const raw = row[c];
+        values.push(raw === '' || raw == null ? 0 : parseFloat(String(raw).replace(/,/g,'')) || 0);
+      }
+
+      tickers.push(ticker);
+      data[ticker] = values;
+    }
+
+    if (tickers.length === 0) return;
+
+    result[sheetName] = {
+      dates,
+      tickers,
+      data,
+      packs: buildPacks(tickers), // derive packs from discovered tickers
+    };
+  });
+
+  return result;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   UTILITY HELPERS
+═══════════════════════════════════════════════════════════════════════ */
+const currentSheet = () => STATE.sheets[STATE.activeSheet];
+
+/* Safe date-array index for N days back; clamps to last available date */
+const dateIdx = (days) => {
+  const s = currentSheet();
+  return s ? Math.min(days, s.dates.length - 1) : 0;
+};
+
+/* OI for a single ticker at a date index (0 = most recent) */
+const tickerOI = (ticker, di) => {
+  const s = currentSheet();
+  return s && s.data[ticker] ? (s.data[ticker][di] || 0) : 0;
+};
+
+/* Sum OI across all contracts in a pack at a given date index */
+const packOI = (pack, di) =>
+  pack.contracts.reduce((sum, t) => sum + tickerOI(t, di), 0);
+
+/* Number formatting */
+const fmtFull  = n => Math.round(n).toLocaleString();
+const fmtK     = n => {
+  const a = Math.abs(n);
+  if (a >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+  return Math.round(n).toString();
+};
+const withSign = (n, fn) => (n >= 0 ? '+' : '') + fn(n);
+const pct      = (cur, prev) => prev > 0 ? (cur - prev) / prev * 100 : 0;
+const clsPN    = n => n > 0 ? 'pos' : n < 0 ? 'neg' : '';
+
+/* Heatmap cell background (green = OI buildup, red = liquidation) */
+const heatBg = (p) => {
+  const clamped = Math.max(-5, Math.min(5, p));
+  const opacity  = (0.08 + Math.abs(clamped) / 5 * 0.78);
+  return clamped >= 0
+    ? `rgba(29,158,117,${opacity})`
+    : `rgba(226,75,74,${opacity})`;
+};
+
+/* High-contrast text colour for a heatmap cell */
+const heatTxt = (p) => {
+  const opacity = 0.12 + Math.abs(Math.max(-5, Math.min(5, p))) / 5 * 0.78;
+  if (p > 0) return opacity > 0.45 ? '#085041' : '#0f6e56';
+  if (p < 0) return opacity > 0.45 ? '#501313' : '#a32d2d';
+  return 'var(--text-secondary)';
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STATUS BANNER
+═══════════════════════════════════════════════════════════════════════ */
+function showStatus(msg, type = 'info') {
+  const el = document.getElementById('status-bar');
+  el.textContent = msg;
+  el.className   = `status-bar show ${type}`;
+}
+function clearStatus() {
+  document.getElementById('status-bar').className = 'status-bar';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CHART LIFECYCLE
+   Chart.js canvases must be explicitly destroyed before the DOM node is
+   replaced, otherwise Chart.js throws "canvas already in use".
+═══════════════════════════════════════════════════════════════════════ */
+function destroyCharts() {
+  Object.values(STATE.chartInstances).forEach(c => { try { c.destroy(); } catch(e){} });
+  STATE.chartInstances = {};
+}
+
+
+async function loadDataFromServer() {
+  try {
+    showStatus('Loading data from server...', 'info');
+
+    const res = await fetch('/data');
+
+    if (!res.ok) {
+      throw new Error('Server not reachable');
+    }
+
+    const json = await res.json();
+
+    if (!json.sheets || Object.keys(json.sheets).length === 0) {
+      showStatus('No data available. Please upload Excel from admin.', 'error');
+      return;
+    }
+
+    STATE.sheets = json.sheets;
+    STATE.activeSheet = Object.keys(json.sheets)[0];
+
+    showStatus('Data loaded successfully', 'info');
+
+    render();
+
+    setTimeout(clearStatus, 3000);
+
+  } catch (err) {
+  console.error("FULL ERROR:", err);
+  showStatus('Error: ' + err.message, 'error');
+  }
+}
+
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RENDER
+   Rebuilds the entire UI from STATE on every interaction.
+   Simple and correct — data size is small so full repaint is fine.
+═══════════════════════════════════════════════════════════════════════ */
+function render() {
+  destroyCharts();
+
+  const s = currentSheet();
+
+  /* Show/hide controls depending on whether data is loaded */
+  const hasData = !!s;
+  ['market-ctrl','period-ctrl','pack-ctrl','view-ctrl'].forEach(id => {
+    document.getElementById(id).style.display = hasData ? '' : 'none';
+  });
+
+  if (!hasData) {
+    /* Show upload prompt */
+    document.getElementById('page-title').textContent = 'OI Dashboard';
+    document.getElementById('date-banner').textContent = '';
+    document.getElementById('content').innerHTML = `
+      <div class="upload-prompt">
+        <strong>No data loaded</strong>
+        <p>Upload an Excel workbook using the "Choose file" button above.
+           Each worksheet (up to the sheet limit) will become a separate market.</p>
+        <p style="font-size:11px;color:var(--text-tertiary)">
+          Expected layout: row 1 = date headers (col A = ticker label, col B+ = dates),
+          rows 2+ = contract tickers with OI values.
+        </p>
+      </div>`;
+    return;
+  }
+
+  /* ── Update page title with active market name ── */
+  document.getElementById('page-title').textContent = `${STATE.activeSheet} — OI Dashboard`;
+
+  /* ── Market selector ── */
+  document.getElementById('sheet-sel').innerHTML =
+    Object.keys(STATE.sheets)
+      .map(n => `<option value="${n}" ${n === STATE.activeSheet ? 'selected' : ''}>${n}</option>`)
+      .join('');
+
+  /* ── Period buttons ── */
+  document.getElementById('period-tabs').innerHTML =
+    PERIODS.map(p =>
+      `<button class="tab-btn ${STATE.activePeriod === p.days ? 'active' : ''}" data-period="${p.days}">${p.label}</button>`
+    ).join('');
+
+  /* ── Pack filter buttons (derived from this sheet's packs) ── */
+  document.getElementById('pack-tabs').innerHTML =
+    `<button class="tab-btn ${STATE.activePack === 'All' ? 'active' : ''}" data-pack="All">All</button>` +
+    s.packs.map(pk =>
+      `<button class="tab-btn ${STATE.activePack === pk.name ? 'active' : ''}" data-pack="${pk.name}"
+         style="color:${pk.txt};border-color:${pk.bdr}">${pk.name}</button>`
+    ).join('');
+
+  /* ── Date context ── */
+  const compDate = s.dates[dateIdx(STATE.activePeriod)];
+  document.getElementById('date-banner').textContent =
+    `Latest: ${s.dates[0]}  ·  Comparing vs ${STATE.activePeriod}d ago: ${compDate}  ·  ${s.tickers.length} contracts across ${s.packs.length} packs`;
+
+  /* ── Which packs to render ── */
+  const visiblePacks = STATE.activePack === 'All'
+    ? s.packs
+    : s.packs.filter(pk => pk.name === STATE.activePack);
+
+  /* ── Render selected view ── */
+  const contentEl = document.getElementById('content');
+  if (STATE.activeView === 'table')   contentEl.innerHTML = buildTableView(visiblePacks);
+  if (STATE.activeView === 'heatmap') contentEl.innerHTML = buildHeatmapView(visiblePacks);
+  if (STATE.activeView === 'chart') {
+    contentEl.innerHTML = buildChartHTML(visiblePacks);
+    requestAnimationFrame(() => renderCharts(visiblePacks));
+  }
+
+  attachEvents();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TABLE VIEW
+   ─────────────────────────────────────────────────────────────────────
+   Columns:  Ticker  |  Latest OI  |  [Abs | %] × 5 periods
+
+   Pack header row:
+     · Col 1:  "White Pack" label (with left colour-border accent)
+     · Col 2:  total pack OI
+     · Then for each period group (Abs col + % col):
+         the pack-level absolute change and % change
+         → these numbers sit in the CORRECT period columns, not crammed in col 1
+═══════════════════════════════════════════════════════════════════════ */
+function buildTableView(visiblePacks) {
+  const s = currentSheet();
+
+  let html = `<div class="table-wrap"><table>
+  <thead>
+    <tr>
+      <th style="text-align:left">Ticker</th>
+      <th>Latest OI</th>`;
+
+  PERIODS.forEach(p => {
+    html += `<th colspan="2" class="period-start" style="text-align:center">${p.label}</th>`;
+  });
+
+  html += `</tr><tr class="sub-hdr"><th></th><th></th>`;
+  PERIODS.forEach(() => { html += `<th class="period-start">Abs</th><th>%</th>`; });
+  html += `</tr></thead><tbody>`;
+
+  visiblePacks.forEach(pk => {
+    /* ── Pack header row ── */
+    const curPack  = packOI(pk, 0);
+
+    html += `<tr class="pack-hdr" style="background:${pk.bg}">`;
+    /* Col 1: pack name with left colour accent */
+    html += `<td style="border-left:3px solid ${pk.hex};color:${pk.txt}">${pk.name} Pack</td>`;
+    /* Col 2: total pack OI */
+    html += `<td style="color:${pk.txt};background:${pk.bg}">${fmtFull(curPack)}</td>`;
+
+    /* Per-period columns: each period gets its Abs and % cell */
+    PERIODS.forEach(p => {
+      const prevPack = packOI(pk, dateIdx(p.days));
+      const chg      = curPack - prevPack;
+      const pctV     = pct(curPack, prevPack);
+      const colour   = chg > 0 ? '#0f6e56' : chg < 0 ? '#a32d2d' : pk.txt;
+
+      html += `<td class="period-start" style="background:${pk.bg};color:${colour};font-weight:700">
+                 ${withSign(chg, fmtK)}
+               </td>
+               <td style="background:${pk.bg};color:${colour};font-weight:700">
+                 ${withSign(pctV, v => Math.abs(v).toFixed(0) + '%')}
+               </td>`;
+    });
+
+    html += `</tr>`;
+
+    /* ── Contract rows ── */
+    pk.contracts.forEach(ticker => {
+      if (!s.data[ticker]) return;
+      const curOI = s.data[ticker][0];
+
+      html += `<tr><td class="contract-name">${ticker}</td><td>${fmtFull(curOI)}</td>`;
+
+      PERIODS.forEach(p => {
+        const prev = s.data[ticker][dateIdx(p.days)] || 0;
+        const chg  = curOI - prev;
+        const pctV = pct(curOI, prev);
+        html += `<td class="period-start ${clsPN(chg)}">${withSign(chg, fmtK)}</td>
+                 <td class="${clsPN(pctV)}">${withSign(pctV, v => Math.abs(v).toFixed(0) + '%')}</td>`;
+      });
+
+      html += `</tr>`;
+    });
+  });
+
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HEATMAP VIEW
+   ─────────────────────────────────────────────────────────────────────
+   Same column structure as the table view but every change cell is
+   colour-coded: green = OI buildup, red = liquidation.
+   Cell text colour adjusts for contrast against the background intensity.
+   Pack header row shows pack-level stats in the correct period columns.
+═══════════════════════════════════════════════════════════════════════ */
+function buildHeatmapView(visiblePacks) {
+  const s = currentSheet();
+
+  let html = `<div class="table-wrap"><table>
+  <thead>
+    <tr>
+      <th style="text-align:left">Ticker</th>
+      <th>Latest OI</th>`;
+
+  PERIODS.forEach(p => {
+    html += `<th colspan="2" class="period-start" style="text-align:center">${p.label}</th>`;
+  });
+
+  html += `</tr><tr class="sub-hdr"><th></th><th></th>`;
+  PERIODS.forEach(() => { html += `<th class="period-start">Abs</th><th>%</th>`; });
+  html += `</tr></thead><tbody>`;
+
+  visiblePacks.forEach(pk => {
+    const curPack = packOI(pk, 0);
+
+    /* ── Pack header row — stats in correct period columns ── */
+    html += `<tr class="pack-hdr" style="background:${pk.bg}">`;
+    html += `<td style="border-left:3px solid ${pk.hex};color:${pk.txt}">${pk.name} Pack</td>`;
+    html += `<td style="color:${pk.txt};background:${pk.bg}">${fmtFull(curPack)}</td>`;
+
+    PERIODS.forEach(p => {
+      const prev   = packOI(pk, dateIdx(p.days));
+      const chg    = curPack - prev;
+      const pctV   = pct(curPack, prev);
+      const colour = chg > 0 ? '#0f6e56' : chg < 0 ? '#a32d2d' : pk.txt;
+
+      html += `<td class="period-start" style="background:${pk.bg};color:${colour};font-weight:700;text-align:center">
+                 ${withSign(chg, fmtK)}
+               </td>
+               <td style="background:${pk.bg};color:${colour};font-weight:700;text-align:center">
+                 ${withSign(pctV, v => Math.abs(v).toFixed(0) + '%')}
+               </td>`;
+    });
+
+    html += `</tr>`;
+
+    /* ── Contract rows ── */
+    pk.contracts.forEach(ticker => {
+      if (!s.data[ticker]) return;
+      const curOI = s.data[ticker][0];
+
+      html += `<tr><td class="contract-name">${ticker}</td><td>${fmtFull(curOI)}</td>`;
+
+      PERIODS.forEach(p => {
+        const prev  = s.data[ticker][dateIdx(p.days)] || 0;
+        const chg   = curOI - prev;
+        const pctV  = pct(curOI, prev);
+        const bg    = heatBg(pctV);
+        const color = heatTxt(pctV);
+
+        html += `<td class="period-start" style="background:${bg};color:${color};text-align:center">
+                   ${withSign(chg, fmtK)}
+                 </td>
+                 <td style="background:${bg};color:${color};text-align:center">
+                   ${withSign(pctV, v => Math.abs(v).toFixed(0) + '%')}
+                 </td>`;
+      });
+
+      html += `</tr>`;
+    });
+  });
+
+  html += `</tbody></table></div>`;
+
+  /* Colour scale legend */
+  const stops = [
+    { v:-5, txt:'#501313', bg:'rgba(226,75,74,0.30)' },
+    { v:-2, txt:'#a32d2d', bg:'rgba(226,75,74,0.15)' },
+    { v: 0, txt:'#6b6b66', bg:'#f0efe8' },
+    { v:+2, txt:'#0f6e56', bg:'rgba(29,158,117,0.15)' },
+    { v:+5, txt:'#085041', bg:'rgba(29,158,117,0.30)' },
+  ];
+  html += `<div class="heatmap-legend">
+    <span>Scale ±5%:</span>
+    ${stops.map(s => `<span style="background:${s.bg};color:${s.txt}">${s.v > 0 ? '+' : ''}${s.v}%</span>`).join('')}
+  </div>`;
+
+  return html;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CHART VIEW
+   ─────────────────────────────────────────────────────────────────────
+   One line chart per visible pack; 1 lines (one per pack).
+═══════════════════════════════════════════════════════════════════════ */
+function buildChartHTML(visiblePacks) {
+  return `<div class="charts-grid">` +
+    visiblePacks.map(pk => `
+      <div class="chart-card">
+        <div class="chart-card-title" style="color:${pk.txt};border-left:3px solid ${pk.hex}">
+          ${pk.name} Pack — OI over time
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="canvas-${pk.name}" role="img"
+            aria-label="${pk.name} pack OI trend for ${pk.contracts.join(', ')}">
+          </canvas>
+        </div>
+      </div>`).join('') +
+  `</div>`;
+}
+
+
+
+function renderCharts(visiblePacks) {
+  const s = currentSheet();
+  if (!s) return;
+
+  /* Charts read left-to-right (oldest → newest), so reverse the date array */
+  const MAX_POINTS = 90;
+    // Labels
+  const labelsFull = [...s.dates].reverse();
+  const labels = labelsFull.slice(-MAX_POINTS);
+  const dashPatterns = [[], [6,3], [2,2], [10,3,2,3]]; // one per contract in pack
+
+  visiblePacks.forEach(pk => {
+    const canvas = document.getElementById(`canvas-${pk.name}`);
+    if (!canvas) return;
+
+        // Step 1: get valid tickers
+    const validTickers = pk.contracts.filter(ticker => s.data[ticker]);
+
+    if (validTickers.length === 0) return;
+
+    // Step 2: initialize sum array
+    const length = s.data[validTickers[0]].length;
+    const sumSeries = new Array(length).fill(0);
+
+    // Step 3: element-wise sum
+    validTickers.forEach(ticker => {
+      const series = s.data[ticker];
+      for (let i = 0; i < length; i++) {
+        sumSeries[i] += series[i] || 0;
+      }
+    });
+
+    // Step 4: reverse (to match labels)
+    const finalSeriesFull = [...sumSeries].reverse();
+    const finalSeries = finalSeriesFull.slice(-MAX_POINTS);
+
+    // Step 5: single dataset
+    const datasets = [{
+      label: `${pk.name} Net OI`,
+      data: finalSeries,
+      borderColor: pk.hex,
+      backgroundColor: pk.hex + '20',
+      borderWidth: 2,
+      pointRadius: 2,
+      tension: 0.3,
+    }];
+
+    STATE.chartInstances[pk.name] = new Chart(canvas, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false, position: 'right',
+            labels: { boxWidth: 8, font: { size: 9 }, color: '#888' },
+          },
+        },
+        scales: {
+          x: { ticks: { font: { size: 9 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } },
+          y: { ticks: { font: { size: 9 }, callback: v => (v / 1e3).toFixed(0) + 'k' }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        },
+      },
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   EVENT LISTENERS
+   Re-attached after every render() call because innerHTML resets the DOM.
+═══════════════════════════════════════════════════════════════════════ */
+function attachEvents() {
+
+  /* Market / sheet selector */
+  document.getElementById('sheet-sel')?.addEventListener('change', e => {
+    STATE.activeSheet  = e.target.value;
+    STATE.activePack   = 'All'; // reset pack filter when switching markets
+    render();
+  });
+
+  /* File upload ── core entry point ── *
+  document.getElementById('file-inp')?.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    showStatus(`Reading "${file.name}"…`, 'info');
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = parseWorkbook(ev.target.result);
+        const count  = Object.keys(parsed).length;
+
+        if (count === 0) {
+          showStatus(
+            'No usable data found. Make sure row 1 has date headers and column A has ticker names.',
+            'error'
+          );
+          return;
+        }
+
+        /* Merge newly parsed sheets into global state *
+        STATE.sheets      = { ...STATE.sheets, ...parsed };
+        /* Default to the first sheet from the just-uploaded file *
+        STATE.activeSheet = Object.keys(parsed)[0];
+        STATE.activePack  = 'All';
+
+        showStatus(
+          `Loaded ${count} market${count > 1 ? 's' : ''}: ${Object.keys(parsed).join(', ')}`,
+          'info'
+        );
+        render();
+        setTimeout(clearStatus, 4000);
+
+      } catch (err) {
+        showStatus('Error parsing Excel: ' + err.message, 'error');
+        console.error(err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }); 
+  */
+
+  /* Period toggle */
+  document.querySelectorAll('[data-period]').forEach(btn => {
+    btn.addEventListener('click', () => { STATE.activePeriod = parseInt(btn.dataset.period, 10); render(); });
+  });
+
+  /* Pack filter */
+  document.querySelectorAll('[data-pack]').forEach(btn => {
+    btn.addEventListener('click', () => { STATE.activePack = btn.dataset.pack; render(); });
+  });
+
+  /* View mode */
+  document.querySelectorAll('[data-view]').forEach(btn => {
+    btn.addEventListener('click', () => { STATE.activeView = btn.dataset.view; render(); });
+  });
+}
+
+/* ── Boot ── */
+attachEvents(); // attach file-input listener before first render
+loadDataFromServer();
+//render();       // render the "no data" upload prompt
+</script>
+</body>
+</html>
