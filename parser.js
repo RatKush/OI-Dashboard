@@ -1,5 +1,5 @@
 // parser.js
-const XLSX = require('xlsx');
+const XLSX = require('xlsx', 'xlsb', 'csv');
 
 const DIFFS = [
   { label:'1D',  i:1  },
