@@ -1,11 +1,2 @@
-/project
-├── server.js          ← Express app, routes, cache
-├── parser.js          ← Pure workbook parser (no DOM, no state)
-├── package.json
-├── .env               ← ADMIN_PASSWORD, PORT
-├── /uploads
-│   └── latest.xlsx    ← Persistent disk (Render mount)
-└── /public
-    ├── index.html     ← Dashboard shell
-    ├── app.js         ← Fetch + render + chart logic
-    └── styles.css     ← Extracted CSS
+<img width="727" height="344" alt="image" src="https://github.com/user-attachments/assets/7072f54f-b537-45fc-b2a0-9e417a0ee36a" />
+
