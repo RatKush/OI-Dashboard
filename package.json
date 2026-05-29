@@ -1,0 +1,17 @@
+{
+  "name": "sofr-oi-dashboard-server",
+  "version": "3.0.0",
+  "description": "Centralized Server Environment for SOFR/Treasury Open Interest Dashboard",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5"
+  }
+}
