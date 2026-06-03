@@ -1,4 +1,7 @@
 # OI Profile Dashboard — Server Edition
+https://ratkush.pythonanywhere.com/
+https://oi-dashboard-csag.onrender.com
+
 
 ## Folder structure
 
