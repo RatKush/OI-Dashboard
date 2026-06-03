@@ -373,28 +373,35 @@ header {
 .pvf-pack-hdr {
   display:grid;
   grid-template-columns: var(--pvf-cols);
-  border-bottom:1px solid rgba(46,63,88,.5);
-  min-height:28px;
+  border-top:1px solid rgba(77,184,255,.22);
+  border-bottom:1px solid rgba(46,63,88,.7);
+  min-height:34px;
+  margin-top:12px;
+  box-shadow:0 -8px 0 var(--bg);
+}
+.pvf-col-hdr + .pvf-pack-hdr {
+  margin-top:0;
+  box-shadow:none;
 }
 .pvf-pack-name-cell {
-  display:flex; align-items:center; padding:4px 10px;
+  display:flex; align-items:center; padding:6px 10px;
   border-right:1px solid var(--border);
 }
 .pvf-pack-lbl {
-  font-family:'IBM Plex Mono', monospace; font-size:10px;
+  font-family:'IBM Plex Mono', monospace; font-size:11px;
   font-weight:700; letter-spacing:2px;
 }
 .pvf-pack-sum {
   display:flex; align-items:center; justify-content:flex-end;
-  padding:4px 8px;
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
+  padding:6px 8px;
+  font-family:'IBM Plex Mono', monospace; font-size:12px;
   font-weight:600; color:var(--text);
   border-right:1px solid var(--border);
 }
 .pvf-pack-diff {
   display:flex; align-items:center; justify-content:flex-end;
-  padding:4px 8px;
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
+  padding:6px 8px;
+  font-family:'IBM Plex Mono', monospace; font-size:12px;
   font-weight:600;
 }
 
@@ -406,6 +413,9 @@ header {
   min-height:29px;
 }
 .pvf-row:hover { background:rgba(77,184,255,.04); }
+.pvf-pack-end {
+  border-bottom:1px solid rgba(46,63,88,.75);
+}
 
 .pvf-c-name {
   display:flex; align-items:center; padding:3px 10px;
@@ -433,6 +443,8 @@ header {
   border-top:1px solid rgba(77,184,255,.3);
   background:rgba(77,184,255,.05);
   min-height:32px;
+  margin-top:12px;
+  box-shadow:0 -8px 0 var(--bg);
 }
 .pvf-grand-lbl {
   display:flex; align-items:center; padding:4px 10px;
@@ -1179,7 +1191,7 @@ function renderPvf(mc) {
 
       // Pack sums
       let packFinalSum = 0, packPreSum = 0;
-      pContracts.forEach(c => {
+      pContracts.forEach((c, i) => {
         packFinalSum += Number(finalOI[c]) || 0;
         packPreSum   += Number(preOI[c])   || 0;
       });
@@ -1199,13 +1211,13 @@ function renderPvf(mc) {
         <div class="pvf-pack-diff" style="${diffStyle(packDiff)}">${diffLabel(packDiff)}</div>`;
       col.appendChild(packHdr);
 
-      pContracts.forEach(c => {
+      pContracts.forEach((c, i) => {
         const fVal = finalOI[c] != null ? Number(finalOI[c]) : null;
         const pVal = preOI[c]   != null ? Number(preOI[c])   : null;
         const diff = (fVal != null && pVal != null) ? fVal - pVal : null;
 
         const row = document.createElement('div');
-        row.className = 'pvf-row';
+        row.className = 'pvf-row' + (i === pContracts.length - 1 ? ' pvf-pack-end' : '');
         row.innerHTML = `
           <div class="pvf-c-name" style="border-left:3px solid ${sc}">${escapeHTML(c)}</div>
           <div class="pvf-c-oi">${fVal != null ? fmtOI(fVal) : '<span style="color:#5a7a9a">—</span>'}</div>
