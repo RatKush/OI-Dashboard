@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OI Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#10161f; --panel:#181f2d; --panel2:#1c2438; --panel3:#202840;
+  --border:#2e3f58; --border2:#3a5070;
+  --accent:#4db8ff; --accent2:#50e890;
+  --warn:#ffd44d;
+  --text:#ffffff; --text2:#dce8f8; --dim:#7a95b8; --dim2:#9ab0cc;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:var(--bg); color:var(--text);
+  font-family:'IBM Plex Sans', sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+header {
+  display:flex; align-items:center; gap:18px; padding:12px 22px;
+  background:#141b28; border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:100;
+}
+.logo {
+  font-family:'IBM Plex Mono', monospace;
+  font-size:16px; font-weight:600; color:var(--accent); letter-spacing:2px;
+}
+.badge {
+  padding:2px 8px; border:1px solid rgba(255,160,50,.5);
+  color:#ffa032; font-family:'IBM Plex Mono', monospace;
+  font-size:10px; letter-spacing:1px; border-radius:2px;
+}
+.logout {
+  margin-left:auto; padding:6px 14px; border:1px solid var(--border2);
+  background:transparent; color:var(--dim2);
+  font-family:'IBM Plex Mono', monospace; font-size:11px;
+  cursor:pointer; border-radius:2px; text-decoration:none;
+  transition:.15s;
+}
+.logout:hover { border-color:var(--accent); color:var(--accent); }
+.view-dash {
+  padding:6px 14px; border:1px solid var(--accent2);
+  background:transparent; color:var(--accent2);
+  font-family:'IBM Plex Mono', monospace; font-size:11px;
+  cursor:pointer; border-radius:2px; text-decoration:none;
+  transition:.15s;
+}
+.view-dash:hover { background:var(--accent2); color:#0d1420; }
+
+.main {
+  width:100%; max-width:860px;
+  margin:0 auto; padding:28px 28px;
+}
+
+.section {
+  background:var(--panel); border:1px solid var(--border);
+  padding:22px 24px; margin-bottom:18px; border-radius:2px;
+}
+.section-title {
+  font-family:'IBM Plex Mono', monospace; font-size:11px;
+  color:var(--accent); letter-spacing:2px; text-transform:uppercase;
+  margin-bottom:18px;
+}
+.meta-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.meta-cell {
+  background:var(--panel2); border:1px solid var(--border);
+  padding:12px 14px; border-radius:2px;
+}
+.meta-cell .mk { font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--dim); letter-spacing:1px; margin-bottom:4px; }
+.meta-cell .mv { font-family:'IBM Plex Mono', monospace; font-size:15px; font-weight:600; color:var(--text); }
+
+/* ── OI Type Toggle ── */
+.oi-type-row {
+  display:flex; gap:10px; margin-bottom:18px;
+}
+.oi-type-btn {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 18px; border:1px solid var(--border2);
+  background:var(--panel2); color:var(--dim2);
+  font-family:'IBM Plex Mono', monospace; font-size:12px;
+  cursor:pointer; border-radius:2px; transition:.15s;
+  user-select:none;
+}
+.oi-type-btn.active-pre {
+  border-color:var(--accent2); color:var(--accent2);
+  background:rgba(80,232,144,.08);
+}
+.oi-type-btn.active-final {
+  border-color:var(--warn); color:var(--warn);
+  background:rgba(255,212,77,.08);
+}
+.oi-type-btn .dot {
+  width:8px; height:8px; border-radius:50%;
+  background:currentColor; flex-shrink:0;
+}
+.oi-type-hint {
+  margin-bottom:14px; padding:9px 13px;
+  font-family:'IBM Plex Mono', monospace; font-size:11px;
+  border-radius:2px; border:1px solid; line-height:1.6;
+}
+.oi-type-hint.pre  { background:rgba(80,232,144,.07); border-color:rgba(80,232,144,.25); color:#8af0b8; }
+.oi-type-hint.final { background:rgba(255,212,77,.07); border-color:rgba(255,212,77,.25); color:#e8c840; }
+
+/* Upload zone */
+.drop-zone {
+  border:2px dashed var(--border2); background:var(--panel2);
+  padding:36px 20px; text-align:center; cursor:pointer;
+  transition:.2s; border-radius:2px; position:relative;
+}
+.drop-zone:hover, .drop-zone.over { border-color:var(--accent); background:rgba(77,184,255,.05); }
+.drop-icon { font-size:32px; margin-bottom:10px; opacity:.5; }
+.drop-text { font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--dim2); }
+.drop-text b { color:var(--accent); }
+#fileInput { display:none; }
+
+.progress { margin-top:14px; display:none; }
+.prog-bar-bg {
+  height:4px; background:var(--panel3); border-radius:2px; overflow:hidden; margin-bottom:8px;
+}
+.prog-bar { height:100%; background:var(--accent); width:0%; transition:width .3s; }
+.prog-msg { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--dim2); }
+
+/* Preview box */
+.preview-box {
+  display:none; margin-top:16px;
+  background:var(--panel3); border:1px solid var(--border2); padding:16px 18px; border-radius:2px;
+}
+.preview-title { font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--accent2); letter-spacing:1.5px; margin-bottom:12px; }
+.preview-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+.preview-item .pk { font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--dim); margin-bottom:3px; }
+.preview-item .pv { font-family:'IBM Plex Mono', monospace; font-size:14px; font-weight:600; color:var(--text); }
+.preview-markets { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--dim2); }
+.preview-markets b { color:var(--text2); }
+
+/* Publish warning banner (shown only for Final) */
+.publish-warning {
+  display:none; margin-top:12px; padding:10px 13px;
+  font-family:'IBM Plex Mono', monospace; font-size:11px; line-height:1.7;
+  border:1px solid rgba(255,212,77,.35); background:rgba(255,212,77,.07);
+  color:#e8c840; border-radius:2px;
+}
+
+.btn-publish {
+  margin-top:14px; padding:10px 28px; border:1px solid var(--accent2);
+  background:transparent; color:var(--accent2);
+  font-family:'IBM Plex Mono', monospace; font-weight:600;
+  font-size:13px; cursor:pointer; letter-spacing:1px;
+  transition:.15s; border-radius:2px;
+}
+.btn-publish:hover { background:var(--accent2); color:#0d1420; }
+.btn-publish:disabled { opacity:.35; cursor:not-allowed; }
+.btn-publish.final-mode {
+  border-color:var(--warn); color:var(--warn);
+}
+.btn-publish.final-mode:hover:not(:disabled) { background:var(--warn); color:#1a1200; }
+
+.toast {
+  display:none; margin-top:12px; padding:10px 14px;
+  font-family:'IBM Plex Mono', monospace; font-size:11px;
+  border-radius:2px; border:1px solid;
+}
+.toast.ok  { background:rgba(30,150,70,.15); border-color:rgba(30,150,70,.4); color:#50e890; }
+.toast.err { background:rgba(180,30,50,.15); border-color:rgba(180,30,50,.4); color:#ff8080; }
+
+/* PvF snapshot info */
+.pvf-meta-row {
+  display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+  font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--dim2);
+}
+.pvf-tag {
+  padding:2px 8px; border:1px solid rgba(255,212,77,.4);
+  color:var(--warn); font-size:10px; border-radius:2px; letter-spacing:.6px;
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">OI PROFILE</div>
+  <div class="badge">ADMIN</div>
+  <a class="view-dash" href="/">← VIEW DASHBOARD</a>
+  <a class="logout" href="/admin/logout">SIGN OUT</a>
+</header>
+
+<div class="main">
+
+  <!-- Current dataset meta -->
+  <div class="section">
+    <div class="section-title">CURRENT DATASET</div>
+    {% if meta and meta.updated_at %}
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="mk">PUBLISHED</div><div class="mv" style="font-size:11px">{{ meta.updated_at[:19] }}</div></div>
+      <div class="meta-cell"><div class="mk">LATEST DATE</div><div class="mv">{{ meta.latest_date }}</div></div>
+      <div class="meta-cell"><div class="mk">MARKETS</div><div class="mv">{{ meta.markets_count }}</div></div>
+      <div class="meta-cell"><div class="mk">CONTRACTS</div><div class="mv">{{ meta.contracts_count }}</div></div>
+    </div>
+    {% else %}
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim)">No data published yet.</div>
+    {% endif %}
+  </div>
+
+  <!-- Pre vs Final snapshot info -->
+  {% if pvf_meta and pvf_meta.snapshot_date %}
+  <div class="section" style="border-color:rgba(255,212,77,.25)">
+    <div class="section-title" style="color:var(--warn)">PRE OI SNAPSHOT (stored for Pre vs Final view)</div>
+    <div class="pvf-meta-row">
+      <span class="pvf-tag">PRE</span>
+      <span>Snapshot date: <b style="color:var(--text2)">{{ pvf_meta.snapshot_date }}</b></span>
+      <span style="color:var(--border2)">|</span>
+      <span>Saved at: <b style="color:var(--text2)">{{ pvf_meta.updated_at[:19] }}</b></span>
+      <span style="color:var(--border2)">|</span>
+      <span>Markets: {% for m in pvf_meta.markets %}<b style="color:var(--text2)">{{ m }}</b>{% if not loop.last %}, {% endif %}{% endfor %}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Upload -->
+  <div class="section">
+    <div class="section-title">UPLOAD & PUBLISH</div>
+
+    <!-- OI Type Selection -->
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:10px;">OI DATA TYPE</div>
+    <div class="oi-type-row">
+      <button class="oi-type-btn active-pre" id="btnPre" onclick="setOiType('pre')">
+        <span class="dot"></span> PRE OI
+      </button>
+      <button class="oi-type-btn" id="btnFinal" onclick="setOiType('final')">
+        <span class="dot"></span> FINAL OI
+      </button>
+    </div>
+    <div class="oi-type-hint pre" id="oiTypeHint">
+      <b>PRE OI:</b> Standard update — replaces current dashboard data. No Pre vs Final snapshot is taken.
+    </div>
+
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+         ondragover="handleDragOver(event)"
+         ondragleave="document.getElementById('dropZone').classList.remove('over')"
+         ondrop="handleDrop(event)">
+      <div class="drop-icon">📂</div>
+      <div class="drop-text">Drop <b>.xlsx / .xls</b> here or click to browse</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFile(event)">
+
+    <div class="progress" id="progress">
+      <div class="prog-bar-bg"><div class="prog-bar" id="progBar"></div></div>
+      <div class="prog-msg" id="progMsg">Parsing…</div>
+    </div>
+
+    <div class="preview-box" id="previewBox">
+      <div class="preview-title">PARSE PREVIEW</div>
+      <div class="preview-grid" id="previewGrid"></div>
+      <div class="preview-markets" id="previewMarkets"></div>
+
+      <div class="publish-warning" id="publishWarning">
+        ⚠ <b>FINAL OI mode:</b> The current dashboard data's latest OI column will be
+        snapshotted as the <b>Pre OI</b> baseline before publishing. This updates the
+        <b>Pre vs Final</b> comparison page. The main dashboard will be replaced with
+        the new file as usual.
+      </div>
+
+      <button class="btn-publish" id="btnPublish" onclick="publish()">⚡ PUBLISH TO DASHBOARD</button>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let tempFile   = null;
+let oiType     = 'pre';   // 'pre' | 'final'
+
+function setOiType(type) {
+  oiType = type;
+  const btnPre    = document.getElementById('btnPre');
+  const btnFinal  = document.getElementById('btnFinal');
+  const hint      = document.getElementById('oiTypeHint');
+  const warning   = document.getElementById('publishWarning');
+  const pubBtn    = document.getElementById('btnPublish');
+
+  btnPre.className   = 'oi-type-btn' + (type === 'pre'   ? ' active-pre'   : '');
+  btnFinal.className = 'oi-type-btn' + (type === 'final' ? ' active-final' : '');
+
+  if (type === 'pre') {
+    hint.className   = 'oi-type-hint pre';
+    hint.innerHTML   = '<b>PRE OI:</b> Standard update — replaces current dashboard data. No Pre vs Final snapshot is taken.';
+    warning.style.display = 'none';
+    pubBtn.className = 'btn-publish';
+    pubBtn.textContent = '⚡ PUBLISH TO DASHBOARD';
+  } else {
+    hint.className   = 'oi-type-hint final';
+    hint.innerHTML   = '<b>FINAL OI:</b> Before publishing, the existing latest-OI column will be saved as the Pre baseline for the Pre vs Final comparison view.';
+    if (document.getElementById('previewBox').style.display !== 'none') {
+      warning.style.display = 'block';
+    }
+    pubBtn.className = 'btn-publish final-mode';
+    pubBtn.textContent = '⚡ PUBLISH AS FINAL OI';
+  }
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.add('over');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('over');
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+}
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (file) uploadFile(file);
+}
+
+function uploadFile(file) {
+  const prog = document.getElementById('progress');
+  const bar  = document.getElementById('progBar');
+  const msg  = document.getElementById('progMsg');
+  const prev = document.getElementById('previewBox');
+  prog.style.display = 'block';
+  prev.style.display = 'none';
+  bar.style.width = '0%';
+  msg.textContent = 'Uploading…';
+  msg.style.color = 'var(--dim2)';
+  showToast('', '');
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  let p  = 0;
+  const iv = setInterval(() => {
+    p = Math.min(p + 10, 80);
+    bar.style.width = p + '%';
+  }, 120);
+
+  fetch('/admin/upload', { method:'POST', body:fd })
+    .then(r => r.json())
+    .then(data => {
+      clearInterval(iv);
+      bar.style.width = '100%';
+      if (data.error) {
+        msg.textContent   = '✗ ' + data.error;
+        msg.style.color   = '#ff8080';
+        return;
+      }
+      msg.textContent = '✓ Parse complete';
+      msg.style.color = 'var(--accent2)';
+      tempFile        = data.temp_file;
+      showPreview(data.preview);
+    })
+    .catch(err => {
+      clearInterval(iv);
+      msg.textContent = '✗ Upload failed: ' + err.message;
+      msg.style.color = '#ff8080';
+    });
+}
+
+function showPreview(p) {
+  const box = document.getElementById('previewBox');
+  box.style.display = 'block';
+  document.getElementById('previewGrid').innerHTML = `
+    <div class="preview-item"><div class="pk">MARKETS</div><div class="pv">${p.markets_count}</div></div>
+    <div class="preview-item"><div class="pk">CONTRACTS</div><div class="pv">${p.contracts_count}</div></div>
+    <div class="preview-item"><div class="pk">LATEST DATE</div><div class="pv" style="font-size:13px">${p.latest_date}</div></div>`;
+  document.getElementById('previewMarkets').innerHTML =
+    'Sheets: ' + p.markets.map(m => `<b>${m}</b>`).join(', ');
+
+  // Show final-mode warning if needed
+  if (oiType === 'final') {
+    document.getElementById('publishWarning').style.display = 'block';
+  }
+}
+
+function publish() {
+  if (!tempFile) return;
+  const btn = document.getElementById('btnPublish');
+  btn.disabled     = true;
+  btn.textContent  = 'Publishing…';
+
+  fetch('/admin/publish', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ temp_file: tempFile, is_final: oiType === 'final' }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      const label = data.is_final ? '✓ Published as FINAL OI' : '✓ Published as PRE OI';
+      showToast(label + ' at ' + data.updated_at.slice(0, 19), 'ok');
+      btn.textContent = label;
+    } else {
+      showToast('✗ ' + data.error, 'err');
+      btn.disabled = false;
+      btn.textContent = oiType === 'final' ? '⚡ PUBLISH AS FINAL OI' : '⚡ PUBLISH TO DASHBOARD';
+    }
+  })
+  .catch(err => {
+    showToast('✗ ' + err.message, 'err');
+    btn.disabled = false;
+    btn.textContent = oiType === 'final' ? '⚡ PUBLISH AS FINAL OI' : '⚡ PUBLISH TO DASHBOARD';
+  });
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent      = msg;
+  t.className        = 'toast ' + type;
+  t.style.display    = msg ? 'block' : 'none';
+}
+
+// Initialise default state
+setOiType('pre');
+</script>
+</body>
+</html>
