@@ -327,6 +327,13 @@ header {
   margin:0 auto;
 }
 
+.pvf-snapshot-target {
+  width:max-content;
+  margin:0 auto;
+  background:var(--bg);
+  color:var(--text);
+}
+
 /* one market column */
 .pvf-mkt-col {
   display:flex;
@@ -472,12 +479,33 @@ header {
   color:var(--dim); flex-wrap:wrap;
 }
 .pvf-meta-bar b { color:var(--text2); }
+.pvf-meta-spacer { flex:1 1 auto; min-width:20px; }
 .pvf-meta-tag {
   padding:2px 8px; border-radius:2px; font-size:9px; letter-spacing:.7px;
   border:1px solid; font-weight:600;
 }
 .pvf-meta-tag.pre   { border-color:rgba(80,232,144,.4); color:var(--accent2); }
 .pvf-meta-tag.final { border-color:rgba(255,212,77,.4); color:var(--warn); }
+.pvf-snapshot-btn {
+  padding:5px 12px;
+  border:1px solid rgba(255,212,77,.55);
+  background:rgba(255,212,77,.08);
+  color:var(--warn);
+  font-family:'IBM Plex Sans',sans-serif;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.5px;
+  cursor:pointer;
+  border-radius:2px;
+  transition:.15s;
+}
+.pvf-snapshot-btn:hover { background:var(--warn); color:#10161f; }
+.pvf-snapshot-btn:disabled {
+  cursor:wait;
+  opacity:.62;
+  background:rgba(255,212,77,.08);
+  color:var(--warn);
+}
 
 /* ─── LOADING ─── */
 #lo {
@@ -1103,7 +1131,10 @@ function renderPvf(mc) {
          The comparison will appear here once a Final OI file is active.`
       : `This view is only active when the latest published file is <b style="color:var(--warn)">Final OI</b>.
          The current dataset was uploaded as <b style="color:var(--accent2)">Pre OI</b>.
-         Upload the corresponding <b style="color:var(--warn)">Final OI</b> file from the admin panel to enable this view.`;
+         Upload the corresponding <b style="color:var(--warn)">Final OI</b> file from the admin panel to enable this view.<br><br>
+        <span style="opacity:.75;font-size:12px">
+          Usually available after <b>9:00 PM IST</b> (~<b>11:30 AM ET</b>) when Final OI is published.
+        </span>`;
     mc.innerHTML = `
       <div class="empty">
         <div class="empty-icon" style="opacity:.2">${icon}</div>
@@ -1123,6 +1154,10 @@ function renderPvf(mc) {
     return;
   }
 
+  const snapshotTarget = document.createElement('div');
+  snapshotTarget.className = 'pvf-snapshot-target';
+  snapshotTarget.id = 'pvfSnapshotTarget';
+
   // Meta bar
   const metaBar = document.createElement('div');
   metaBar.className = 'pvf-meta-bar';
@@ -1133,8 +1168,10 @@ function renderPvf(mc) {
     <span class="pvf-meta-tag final">FINAL</span>
     <span>Date: <b>${final.snapshot_date || '—'}</b></span>
     <span style="color:var(--border2)">|</span>
-    <span style="color:var(--dim)">Diff = Final OI − Pre OI</span>`;
-  mc.appendChild(metaBar);
+    <span style="color:var(--dim)">Diff = Final OI − Pre OI</span>
+    <span class="pvf-meta-spacer"></span>
+    <button class="pvf-snapshot-btn" type="button" onclick="downloadPvfSnapshot(this)" data-no-snapshot="true">SNAPSHOT</button>`;
+  snapshotTarget.appendChild(metaBar);
 
   // Side-by-side market columns
   const page = document.createElement('div');
@@ -1238,7 +1275,296 @@ function renderPvf(mc) {
     page.appendChild(col);
   });
 
-  mc.appendChild(page);
+  snapshotTarget.appendChild(page);
+  mc.appendChild(snapshotTarget);
+}
+
+async function downloadPvfSnapshot(btn) {
+  const oldText = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'EXPORTING...';
+  }
+
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+    const canvas = drawPvfSnapshotCanvas(3);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Canvas PNG export returned empty data.');
+
+    const link = document.createElement('a');
+    const preDate = safeFileDate(S.pvf?.pre?.snapshot_date || 'pre');
+    const finalDate = safeFileDate(S.pvf?.final?.snapshot_date || 'final');
+    const url = URL.createObjectURL(blob);
+    link.download = `pre-vs-final_${preDate}_to_${finalDate}.png`;
+    link.href = url;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    const copied = await copyPvfSnapshotToClipboard(blob);
+    if (btn) btn.textContent = copied ? 'SAVED + COPIED' : 'SAVED';
+  } catch (err) {
+    alert('Snapshot export failed. Please refresh the page and try once more.');
+    console.error(err);
+  } finally {
+    if (btn) {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = oldText || 'SNAPSHOT';
+      }, 900);
+    }
+  }
+}
+
+async function copyPvfSnapshotToClipboard(blob) {
+  try {
+    if (!navigator.clipboard || typeof ClipboardItem === 'undefined') return false;
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    return true;
+  } catch (err) {
+    console.warn('Clipboard image copy failed; PNG download still completed.', err);
+    return false;
+  }
+}
+
+function drawPvfSnapshotCanvas(scale = 3) {
+  if (!S.pvfLive || !S.pvf) throw new Error('Pre vs Final data is not active.');
+
+  const { pre, final, market_order } = S.pvf;
+  const markets = market_order.filter(m => isPvfMarket(m)).map(buildPvfSnapshotMarket).filter(Boolean);
+  if (!markets.length) throw new Error('No Pre vs Final markets available.');
+
+  const L = {
+    name:275, oi:170, diff:170, gap:22,
+    metaH:60, mktHeadH:52, colHeadH:42, packH:54, rowH:46, grandH:52, packGap:18, grandGap:18,
+  };
+  L.colW = L.name + L.oi + L.diff;
+  const width = markets.length * L.colW + (markets.length - 1) * L.gap;
+  const colHeights = markets.map(m => pvfSnapshotColumnHeight(m, L));
+  const height = L.metaH + Math.max(...colHeights);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#10161f';
+  ctx.fillRect(0, 0, width, height);
+
+  drawPvfSnapshotMeta(ctx, pre.snapshot_date, final.snapshot_date, width, L.metaH);
+
+  markets.forEach((market, i) => {
+    drawPvfSnapshotMarket(ctx, market, i * (L.colW + L.gap), L.metaH, L, colHeights[i]);
+  });
+
+  return canvas;
+}
+
+function buildPvfSnapshotMarket(mktName) {
+  const { pre, final } = S.pvf;
+  const preOI   = pre.markets?.[mktName]   || {};
+  const finalOI = final.markets?.[mktName] || {};
+  const liveContracts = S.markets[mktName]?.contracts ?? [];
+  const seen = new Set(liveContracts);
+  const extra = [...Object.keys(preOI), ...Object.keys(finalOI)].filter(c => !seen.has(c));
+  const uncappedContracts = [...liveContracts, ...extra];
+  const cap = marketContractCap(mktName);
+  const contracts = cap !== null ? uncappedContracts.slice(0, cap) : uncappedContracts;
+  if (!contracts.length) return null;
+
+  const packs = packsForMarket(mktName, contracts).map(pack => ({
+    ...pack,
+    contracts: pack.contracts || contracts.slice(pack.start, pack.end + 1),
+  })).filter(pack => pack.contracts.length);
+
+  return { name:mktName, contracts, packs, preOI, finalOI };
+}
+
+function pvfSnapshotColumnHeight(market, L) {
+  let h = L.mktHeadH + L.colHeadH;
+  market.packs.forEach((pack, i) => {
+    h += (i === 0 ? 0 : L.packGap) + L.packH + pack.contracts.length * L.rowH;
+  });
+  return h + L.grandGap + L.grandH;
+}
+
+function drawPvfSnapshotMeta(ctx, preDate, finalDate, width, h) {
+  ctx.fillStyle = '#10161f';
+  ctx.fillRect(0, 0, width, h);
+  ctx.textBaseline = 'middle';
+  let x = 0;
+  const y = h / 2;
+  x = drawSnapshotTag(ctx, 'PRE', x, y, '#50e890', 'rgba(80,232,144,.18)') + 10;
+  x = drawSnapshotText(ctx, `Date: ${preDate || '-'}`, x, y, '#dce8f8', '500 17px') + 28;
+  x = drawSnapshotText(ctx, '->', x, y, '#3a5070', '600 18px') + 28;
+  x = drawSnapshotTag(ctx, 'FINAL', x, y, '#ffd44d', 'rgba(255,212,77,.18)') + 10;
+  x = drawSnapshotText(ctx, `Date: ${finalDate || '-'}`, x, y, '#dce8f8', '500 17px') + 28;
+  x = drawSnapshotText(ctx, '|', x, y, '#3a5070', '600 17px') + 28;
+  drawSnapshotText(ctx, 'Diff = Final OI - Pre OI', x, y, '#7a95b8', '500 17px');
+}
+
+function drawPvfSnapshotMarket(ctx, market, x, y, L, height) {
+  const c = {
+    bg:'#10161f', panel:'#181f2d', panel2:'#1c2438', panel3:'#202840',
+    border:'#2e3f58', borderSoft:'rgba(46,63,88,.55)', accent:'#4db8ff',
+    text:'#ffffff', text2:'#dce8f8', dim:'#7a95b8', dim2:'#9ab0cc',
+  };
+  ctx.strokeStyle = c.border;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + .5, y + .5, L.colW - 1, height - 1);
+
+  let cy = y;
+  ctx.fillStyle = c.panel3;
+  ctx.fillRect(x, cy, L.colW, L.mktHeadH);
+  drawCanvasText(ctx, market.name, x + 10, cy + L.mktHeadH / 2, {
+    font:'700 18px "IBM Plex Mono", Consolas, monospace', color:c.accent, maxWidth:330,
+  });
+  drawCanvasText(ctx, `${market.contracts.length} contracts`, x + L.colW - 10, cy + L.mktHeadH / 2, {
+    font:'500 14px "IBM Plex Mono", Consolas, monospace', color:c.dim, align:'right',
+  });
+  strokeLine(ctx, x, cy + L.mktHeadH, x + L.colW, cy + L.mktHeadH, c.border);
+  cy += L.mktHeadH;
+
+  ctx.fillStyle = c.panel2;
+  ctx.fillRect(x, cy, L.colW, L.colHeadH);
+  drawCellText(ctx, 'CONTRACT', x, cy, L.name, L.colHeadH, c.dim2, 'left', '600 14px');
+  drawCellText(ctx, 'FINAL OI', x + L.name, cy, L.oi, L.colHeadH, c.dim2, 'right', '600 14px');
+  drawCellText(ctx, 'DIFF', x + L.name + L.oi, cy, L.diff, L.colHeadH, c.dim2, 'right', '600 14px');
+  drawVerticals(ctx, x, cy, L, L.colHeadH, c.borderSoft);
+  strokeLine(ctx, x, cy + L.colHeadH, x + L.colW, cy + L.colHeadH, c.border);
+  cy += L.colHeadH;
+
+  let grandFinal = 0, grandDiff = 0;
+  market.packs.forEach((pack, packIndex) => {
+    if (packIndex > 0) cy += L.packGap;
+    const sc = pack.sideColor || c.accent;
+    let packFinal = 0, packPre = 0;
+    pack.contracts.forEach(contract => {
+      packFinal += Number(market.finalOI[contract]) || 0;
+      packPre += Number(market.preOI[contract]) || 0;
+    });
+    const packDiff = packFinal - packPre;
+    grandFinal += packFinal;
+    grandDiff += packDiff;
+
+    ctx.fillStyle = hexToRgba(sc, .10);
+    ctx.fillRect(x, cy, L.colW, L.packH);
+    ctx.fillStyle = sc;
+    ctx.fillRect(x, cy, 3, L.packH);
+    drawCellText(ctx, pack.name, x, cy, L.name, L.packH, pack.sideText === '#101820' ? sc : pack.sideText, 'left', '700 18px');
+    drawCellText(ctx, fmtOI(packFinal), x + L.name, cy, L.oi, L.packH, c.text, 'right', '600 18px');
+    drawCellText(ctx, snapshotDiffText(packDiff), x + L.name + L.oi, cy, L.diff, L.packH, snapshotDiffColor(packDiff), 'right', '600 18px');
+    drawVerticals(ctx, x, cy, L, L.packH, c.border);
+    strokeLine(ctx, x, cy + L.packH, x + L.colW, cy + L.packH, c.borderSoft);
+    cy += L.packH;
+
+    pack.contracts.forEach(contract => {
+      const fVal = market.finalOI[contract] != null ? Number(market.finalOI[contract]) : null;
+      const pVal = market.preOI[contract] != null ? Number(market.preOI[contract]) : null;
+      const diff = (fVal != null && pVal != null) ? fVal - pVal : null;
+      ctx.fillStyle = sc;
+      ctx.fillRect(x, cy, 3, L.rowH);
+      drawCellText(ctx, contract, x, cy, L.name, L.rowH, c.text2, 'left', '500 18px');
+      drawCellText(ctx, fVal != null ? fmtOI(fVal) : '-', x + L.name, cy, L.oi, L.rowH, fVal != null ? c.text : '#5a7a9a', 'right', '500 18px');
+      drawCellText(ctx, snapshotDiffText(diff), x + L.name + L.oi, cy, L.diff, L.rowH, snapshotDiffColor(diff), 'right', '600 18px');
+      drawVerticals(ctx, x, cy, L, L.rowH, c.borderSoft);
+      strokeLine(ctx, x, cy + L.rowH, x + L.colW, cy + L.rowH, 'rgba(46,63,88,.40)');
+      cy += L.rowH;
+    });
+  });
+
+  cy += L.grandGap;
+  ctx.fillStyle = 'rgba(77,184,255,.05)';
+  ctx.fillRect(x, cy, L.colW, L.grandH);
+  strokeLine(ctx, x, cy, x + L.colW, cy, 'rgba(77,184,255,.30)');
+  drawCellText(ctx, 'TOTAL', x, cy, L.name, L.grandH, c.accent, 'left', '600 17px');
+  drawCellText(ctx, fmtOI(grandFinal), x + L.name, cy, L.oi, L.grandH, c.accent, 'right', '700 19px');
+  drawCellText(ctx, snapshotDiffText(grandDiff), x + L.name + L.oi, cy, L.diff, L.grandH, snapshotDiffColor(grandDiff), 'right', '700 19px');
+  drawVerticals(ctx, x, cy, L, L.grandH, 'rgba(77,184,255,.15)');
+}
+
+function drawSnapshotTag(ctx, text, x, y, color, bg) {
+  ctx.font = '600 16px "IBM Plex Mono", Consolas, monospace';
+  const w = Math.ceil(ctx.measureText(text).width) + 24;
+  ctx.fillStyle = bg;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.fillRect(x, y - 15, w, 30);
+  ctx.strokeRect(x + .5, y - 14.5, w - 1, 29);
+  ctx.fillStyle = color;
+  ctx.fillText(text, x + 12, y + .5);
+  return x + w;
+}
+
+function drawSnapshotText(ctx, text, x, y, color, fontSize) {
+  ctx.font = `${fontSize} "IBM Plex Mono", Consolas, monospace`;
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y + .5);
+  return x + ctx.measureText(text).width;
+}
+
+function drawCanvasText(ctx, text, x, y, opts = {}) {
+  ctx.save();
+  ctx.font = opts.font || '500 11px "IBM Plex Mono", Consolas, monospace';
+  ctx.fillStyle = opts.color || '#ffffff';
+  ctx.textAlign = opts.align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(ellipsizeCanvasText(ctx, text, opts.maxWidth || Infinity), x, y);
+  ctx.restore();
+}
+
+function drawCellText(ctx, text, x, y, w, h, color, align = 'left', fontSize = '500 11px') {
+  const pad = 10;
+  drawCanvasText(ctx, String(text), align === 'right' ? x + w - pad : x + pad, y + h / 2, {
+    color, align, maxWidth:w - pad * 2,
+    font:`${fontSize} "IBM Plex Mono", Consolas, monospace`,
+  });
+}
+
+function drawVerticals(ctx, x, y, L, h, color) {
+  strokeLine(ctx, x + L.name, y, x + L.name, y + h, color);
+  strokeLine(ctx, x + L.name + L.oi, y, x + L.name + L.oi, y + h, color);
+}
+
+function strokeLine(ctx, x1, y1, x2, y2, color) {
+  ctx.strokeStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x1 + .5, y1 + .5);
+  ctx.lineTo(x2 + .5, y2 + .5);
+  ctx.stroke();
+}
+
+function ellipsizeCanvasText(ctx, text, maxWidth) {
+  text = String(text);
+  if (!Number.isFinite(maxWidth) || ctx.measureText(text).width <= maxWidth) return text;
+  while (text.length > 1 && ctx.measureText(text + '...').width > maxWidth) text = text.slice(0, -1);
+  return text + '...';
+}
+
+function snapshotDiffText(val) {
+  if (val == null || !Number.isFinite(val)) return '-';
+  if (val === 0) return '0';
+  return (val > 0 ? '+' : '') + fmt(val);
+}
+
+function snapshotDiffColor(val) {
+  if (val == null || !Number.isFinite(val) || val === 0) return '#7a95b8';
+  return val > 0 ? '#50e890' : '#ff6b6b';
+}
+
+function hexToRgba(hex, alpha) {
+  const v = String(hex || '#4db8ff').replace('#', '');
+  const r = parseInt(v.slice(0, 2), 16);
+  const g = parseInt(v.slice(2, 4), 16);
+  const b = parseInt(v.slice(4, 6), 16);
+  return `rgba(${r || 0},${g || 0},${b || 0},${alpha})`;
+}
+
+function safeFileDate(v) {
+  return String(v || '')
+    .trim()
+    .replace(/[^0-9A-Za-z]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'date';
 }
 
 /** CSS colour string for a diff value */
