@@ -9,12 +9,12 @@ OI Profile Dashboard — Flask Server
   GET  /admin/logout          → clear session
 """
 
-import os, json, hashlib, secrets, re
+import os, json, hashlib, secrets, re, struct, zlib
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from flask import (Flask, request, jsonify, session,
                    redirect, url_for, render_template,
-                   send_from_directory, abort)
+                   send_from_directory, abort, Response)
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 import openpyxl
@@ -27,6 +27,14 @@ UPLOAD_DIR      = os.path.join(BASE_DIR, 'uploads')
 DATA_FILE       = os.path.join(DATA_DIR, 'current.json')
 PVF_FILE        = os.path.join(DATA_DIR, 'pre_vs_final.json')   # pre-vs-final store
 ALLOWED         = {'.xlsx', '.xls'}
+PUBLIC_SITE_URL = 'https://ratkush.pythonanywhere.com/'
+OG_DESCRIPTION  = (
+    'OI Profile Dashboard. Real-time tracking of Open Interest (OI) macro '
+    'profiles. Monitor positioning across 7 core global markets, including '
+    'SR3, Fed Funds, Treasuries, and major international rates. Analyze '
+    'shifts instantly via heatmaps, historical series, or pre vs. final data '
+    'views.'
+)
 
 # Markets included on the Pre vs Final page (case-insensitive substring match)
 PVF_MARKET_KEYS = ['sr3', 'ff', 'treas', 'tnote', 'tbond', 'zn', 'zb', 'zt', 'zf', 'ultra']
@@ -236,10 +244,142 @@ def admin_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
+def _latest_date_for_title(latest_date):
+    """Convert dd/mm/yy to dd Mon for share titles."""
+    if not latest_date:
+        return None
+    s = str(latest_date).strip()
+    try:
+        return datetime.strptime(s, '%d/%m/%y').strftime('%d %b')
+    except ValueError:
+        return s if s and s != '—' else None
+
+def build_share_meta():
+    data = load_current() or {}
+    date_label = _latest_date_for_title(data.get('latest_date'))
+    title = f"OI Profile {date_label}" if date_label else 'OI Profile Dashboard'
+    return {
+        'title': title,
+        'description': OG_DESCRIPTION,
+        'url': PUBLIC_SITE_URL,
+        'image': PUBLIC_SITE_URL.rstrip('/') + url_for('og_image'),
+    }
+
+def _png_chunk(kind, data):
+    return (
+        struct.pack('>I', len(data)) +
+        kind +
+        data +
+        struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+    )
+
+def _dashboard_preview_png(width=1200, height=630):
+    bg = (16, 22, 31)
+    pixels = bytearray(bg * width * height)
+
+    def put(x, y, color):
+        if 0 <= x < width and 0 <= y < height:
+            i = (y * width + x) * 3
+            pixels[i:i + 3] = bytes(color)
+
+    def rect(x, y, w, h, color):
+        x0, x1 = max(0, x), min(width, x + w)
+        y0, y1 = max(0, y), min(height, y + h)
+        row = bytes(color) * max(0, x1 - x0)
+        for yy in range(y0, y1):
+            i = (yy * width + x0) * 3
+            pixels[i:i + len(row)] = row
+
+    def line(x0, y0, x1, y1, color):
+        dx = abs(x1 - x0)
+        sx = 1 if x0 < x1 else -1
+        dy = -abs(y1 - y0)
+        sy = 1 if y0 < y1 else -1
+        err = dx + dy
+        while True:
+            for ox in range(-1, 2):
+                for oy in range(-1, 2):
+                    put(x0 + ox, y0 + oy, color)
+            if x0 == x1 and y0 == y1:
+                break
+            e2 = 2 * err
+            if e2 >= dy:
+                err += dy
+                x0 += sx
+            if e2 <= dx:
+                err += dx
+                y0 += sy
+
+    rect(0, 0, width, 76, (20, 27, 40))
+    rect(0, 75, width, 2, (46, 63, 88))
+    rect(36, 24, 160, 18, (77, 184, 255))
+    rect(232, 18, 84, 12, (122, 149, 184))
+    rect(232, 38, 136, 18, (220, 232, 248))
+    rect(404, 18, 104, 12, (122, 149, 184))
+    rect(404, 38, 92, 18, (220, 232, 248))
+    rect(1022, 22, 118, 34, (24, 31, 45))
+    rect(1148, 35, 14, 14, (80, 232, 144))
+
+    rect(0, 76, width, 54, (24, 31, 45))
+    for i, x in enumerate([34, 154, 274, 394, 514, 634, 754]):
+        rect(x, 98, 82, 16, (77, 184, 255) if i == 0 else (154, 176, 204))
+    rect(28, 128, 112, 2, (77, 184, 255))
+
+    rect(36, 168, 548, 390, (24, 31, 45))
+    rect(36, 168, 548, 2, (58, 80, 112))
+    rect(62, 198, 146, 18, (220, 232, 248))
+    for i in range(9):
+        rect(62 + i * 54, 242, 42, 14, (122, 149, 184))
+    colors = [
+        (80, 232, 144), (77, 184, 255), (255, 212, 77),
+        (255, 107, 107), (176, 136, 255), (64, 221, 176)
+    ]
+    for r in range(9):
+        rect(62, 282 + r * 26, 92, 12, (220, 232, 248))
+        for c in range(7):
+            color = colors[(r + c) % len(colors)]
+            rect(182 + c * 50, 278 + r * 26, 38, 18, color)
+
+    rect(622, 168, 542, 390, (24, 31, 45))
+    rect(622, 168, 542, 2, (58, 80, 112))
+    rect(648, 198, 190, 18, (220, 232, 248))
+    for i in range(6):
+        y = 262 + i * 42
+        rect(660, y, 450, 1, (46, 63, 88))
+    pts = [(668, 432), (744, 386), (820, 408), (896, 318), (972, 344), (1048, 254), (1114, 286)]
+    for a, b in zip(pts, pts[1:]):
+        line(a[0], a[1], b[0], b[1], (77, 184, 255))
+    for x, y in pts:
+        rect(x - 5, y - 5, 10, 10, (80, 232, 144))
+
+    raw = b''.join(b'\x00' + pixels[y * width * 3:(y + 1) * width * 3] for y in range(height))
+    png = b'\x89PNG\r\n\x1a\n'
+    png += _png_chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+    png += _png_chunk(b'IDAT', zlib.compress(raw, 9))
+    png += _png_chunk(b'IEND', b'')
+    return png
+
 # ── PUBLIC ROUTES ────────────────────────────────────────────────────────
 @app.route('/')
 def index():
-    return render_template('dashboard.html')
+    return render_template('dashboard.html', share_meta=build_share_meta())
+
+@app.route('/og-image.png')
+def og_image():
+    resp = Response(_dashboard_preview_png(), mimetype='image/png')
+    resp.headers['Cache-Control'] = 'public, max-age=3600'
+    return resp
+
+@app.route('/sitemap.xml')
+def sitemap():
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>{PUBLIC_SITE_URL}</loc>
+  </url>
+</urlset>
+"""
+    return Response(xml, mimetype='application/xml')
 
 @app.route('/api/dashboard-data')
 def api_dashboard_data():
