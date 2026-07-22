@@ -1,1744 +1,646 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ share_meta.title }}</title>
-<meta name="description" content="{{ share_meta.description }}">
-<link rel="canonical" href="{{ share_meta.url }}">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ share_meta.title if share_meta else 'OI Profile Dashboard' }}</title>
+<meta name="description" content="{{ share_meta.description if share_meta else '' }}">
+<!-- Open Graph / share cards -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="OI Profile Dashboard">
-<meta property="og:title" content="{{ share_meta.title }}">
-<meta property="og:description" content="{{ share_meta.description }}">
-<meta property="og:url" content="{{ share_meta.url }}">
-<meta property="og:image" content="{{ share_meta.image }}">
-<meta property="og:image:secure_url" content="{{ share_meta.image }}">
-<meta property="og:image:type" content="image/png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="OI Profile Dashboard market overview">
+<meta property="og:title" content="{{ share_meta.title if share_meta else 'OI Profile Dashboard' }}">
+<meta property="og:description" content="{{ share_meta.description if share_meta else '' }}">
+<meta property="og:url" content="{{ share_meta.url if share_meta else '' }}">
+<meta property="og:image" content="{{ share_meta.image if share_meta else '' }}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{ share_meta.title }}">
-<meta name="twitter:description" content="{{ share_meta.description }}">
-<meta name="twitter:image" content="{{ share_meta.image }}">
-<meta name="twitter:image:alt" content="OI Profile Dashboard market overview">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<meta name="twitter:title" content="{{ share_meta.title if share_meta else 'OI Profile Dashboard' }}">
+<meta name="twitter:description" content="{{ share_meta.description if share_meta else '' }}">
+<meta name="twitter:image" content="{{ share_meta.image if share_meta else '' }}">
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+<script>window.Chart||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"><\/script>')</script>
 <style>
-
-:root {
-  --bg:      #10161f;
-  --panel:   #181f2d;
-  --panel2:  #1c2438;
-  --panel3:  #202840;
-  --border:  #2e3f58;
-  --border2: #3a5070;
-  --accent:  #4db8ff;
-  --accent2: #50e890;
-  --warn:    #ffd44d;
-  --text:    #ffffff;
-  --text2:   #dce8f8;
-  --dim:     #7a95b8;
-  --dim2:    #9ab0cc;
+/* ============================================================
+   OI PROFILE — Rates Open Interest Dashboard
+   Institutional "Wall-Street" restyle, aligned to the
+   Futures OI workbook: deep-navy chrome, slate section
+   headers, dense tabular grids, per-column blue→white→green
+   heat-map. Light, print-clean, high-contrast.
+   ============================================================ */
+:root{
+  --bg:#eceff4;
+  --panel:#ffffff;
+  --ink:#17233b;          /* primary text / headings */
+  --ink-soft:#43536e;     /* secondary text */
+  --muted:#7b8aa1;        /* tertiary */
+  --navy:#1b2c47;         /* title bar */
+  --navy-2:#26436c;       /* title bar gradient end */
+  --slate:#3f577c;        /* section header bars */
+  --slate-2:#4f6b96;      /* mid slate */
+  --slate-hd:#41597f;     /* column header row */
+  --line:#d7dce5;         /* gridlines */
+  --line-strong:#595959;  /* pack separators */
+  --row-alt:#f4f6fa;      /* zebra */
+  --chip:#e7ecf3;
+  --pos:#1f9d6b;          /* up (green) */
+  --neg:#cf3f38;          /* down (red) */
+  --blue:#2f6fb0;         /* heat negative side */
+  --green:#1f9d6b;        /* heat positive side */
+  --accent:#3d7bd1;
+  --shadow:0 1px 2px rgba(20,32,55,.06), 0 6px 22px rgba(20,32,55,.08);
+  --mono:"SF Mono",ui-monospace,"Roboto Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+  --sans:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
 }
-
-* { margin:0; padding:0; box-sizing:border-box; }
-
-body {
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
   background:var(--bg);
-  color:var(--text);
-  font-family:'IBM Plex Sans', sans-serif;
-  font-size:14px;
-  font-weight:400;
-  overflow-x:hidden;
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:13px;
   -webkit-font-smoothing:antialiased;
+  font-feature-settings:"tnum" 1,"cv01" 1;
 }
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
-.app { position:relative; }
+/* ---------- Title bar ---------- */
+header.topbar{
+  background:linear-gradient(100deg,var(--navy) 0%,var(--navy-2) 100%);
+  color:#fff;
+  padding:14px 24px 13px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  border-bottom:3px solid #0f1b2e;
+  position:sticky;top:0;z-index:40;
+}
+.brand{display:flex;flex-direction:column;gap:3px;min-width:0}
+.brand .l1{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand h1{
+  font-size:20px;font-weight:800;letter-spacing:.14em;margin:0;
+  text-transform:uppercase;color:#eaf1fb;
+}
+.brand .sub{
+  font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+  color:#8fb0d8;
+}
+.brand .meta{
+  font-size:11.5px;color:#a9c1de;font-style:italic;letter-spacing:.02em;
+  display:flex;gap:14px;flex-wrap:wrap;margin-top:2px;
+}
+.brand .meta b{color:#e7f0fb;font-style:normal;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.livedot{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:#bcd2ec}
+.livedot i{width:9px;height:9px;border-radius:50%;background:#4fd18a;
+  box-shadow:0 0 0 0 rgba(79,209,138,.6);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,209,138,.55)}70%{box-shadow:0 0 0 9px rgba(79,209,138,0)}100%{box-shadow:0 0 0 0 rgba(79,209,138,0)}}
+.btn{
+  font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;cursor:pointer;border-radius:6px;border:1px solid transparent;
+  padding:8px 14px;transition:.15s;white-space:nowrap;
+}
+.btn-refresh{background:#12508a;color:#eaf2fb;border-color:#2f6aa5}
+.btn-refresh:hover{background:#1b64a9}
+.btn-refresh:active{transform:translateY(1px)}
 
-/* ─── HEADER ─── */
-header {
-  display:flex; align-items:center; gap:18px; padding:12px 22px;
-  background:#141b28;
-  border-bottom:1px solid var(--border);
-  position:sticky; top:0; z-index:100;
-  flex-wrap:wrap;
+/* ---------- Control strip ---------- */
+.controls{
+  background:#dbe2ec;border-bottom:1px solid #c3ccda;
+  padding:0 20px;display:flex;align-items:stretch;justify-content:space-between;
+  gap:16px;flex-wrap:wrap;position:sticky;top:57px;z-index:30;
 }
-.logo {
-  font-family:'IBM Plex Mono', monospace;
-  font-size:16px; font-weight:600;
-  color:var(--accent); letter-spacing:2px; white-space:nowrap;
+.tabs{display:flex;gap:0;overflow-x:auto}
+.tab{
+  appearance:none;border:0;background:transparent;cursor:pointer;
+  font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-soft);
+  padding:13px 16px 11px;border-bottom:3px solid transparent;white-space:nowrap;transition:.12s;
 }
-.hdr-meta { display:flex; gap:24px; align-items:center; }
-.hdr-stat {
-  display:flex; flex-direction:column;
-  font-family:'IBM Plex Mono', monospace;
-  font-size:10px; color:var(--dim); line-height:1.5;
+.tab:hover{color:var(--navy);background:rgba(255,255,255,.45)}
+.tab.active{color:var(--navy);border-bottom-color:var(--navy);background:rgba(255,255,255,.7)}
+.viewtoggle{display:flex;align-items:center;gap:8px;padding:8px 0}
+.seg{display:inline-flex;background:#c7d0dd;border-radius:8px;padding:3px}
+.seg button{
+  appearance:none;border:0;background:transparent;cursor:pointer;border-radius:6px;
+  font-family:var(--sans);font-size:11.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:#43536e;padding:7px 14px;transition:.12s;white-space:nowrap;
 }
-.hdr-stat b { color:var(--text); font-size:13px; font-weight:600; }
-.hdr-right { display:flex; gap:10px; align-items:center; margin-left:auto; }
-.published-at {
-  display:flex; flex-direction:column; align-items:flex-end;
-  gap:1px; font-family:'IBM Plex Mono', monospace;
-  line-height:1.2; white-space:nowrap;
-}
-.published-at span { color:var(--dim); font-size:9px; letter-spacing:.8px; }
-.published-at b    { color:var(--text2); font-size:11px; font-weight:600; }
-.dot { width:8px; height:8px; border-radius:50%; background:var(--border2); flex-shrink:0; transition:.3s; }
-.dot.live { background:var(--accent2); box-shadow:0 0 8px var(--accent2); animation:pulse 2s infinite; }
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-.btn {
-  padding:7px 18px; border:1px solid var(--accent); background:transparent;
-  color:var(--accent); font-family:'IBM Plex Sans',sans-serif;
-  font-weight:600; font-size:13px; cursor:pointer; letter-spacing:.5px;
-  transition:.15s; border-radius:2px;
-}
-.btn:hover { background:var(--accent); color:#0d1420; }
-.btn.g { border-color:var(--accent2); color:var(--accent2); }
-.btn.g:hover { background:var(--accent2); color:#0d1420; }
-.admin-link {
-  width:31px; height:31px;
-  display:inline-flex; align-items:center; justify-content:center;
-  border:1px solid var(--border2); color:var(--dim2);
-  background:transparent; text-decoration:none;
-  border-radius:2px; transition:.15s; position:relative;
-}
-.admin-link::before {
-  content:''; width:12px; height:12px;
-  border:1.5px solid currentColor; border-radius:1px; transform:translate(-1px,1px);
-}
-.admin-link::after {
-  content:''; position:absolute; width:11px; height:11px;
-  border-top:1.5px solid currentColor; border-right:1.5px solid currentColor;
-  background:linear-gradient(135deg, transparent 43%, currentColor 45%, currentColor 55%, transparent 57%);
-  transform:translate(4px,-4px);
-}
-.admin-link:hover { border-color:var(--accent); color:var(--accent); background:rgba(77,184,255,.07); }
+.seg button.active{background:var(--navy);color:#fff;box-shadow:0 1px 3px rgba(20,32,55,.25)}
+.seg.small button{padding:5px 12px;font-size:11px}
 
-/* ─── MARKET TABS ─── */
-.mkt-tabs {
-  display:flex; padding:8px 22px 0;
-  border-bottom:1px solid var(--border);
-  overflow-x:auto; scrollbar-width:none; background:var(--panel);
+/* ---------- Main ---------- */
+main{padding:20px;max-width:1420px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+.card-hd{
+  background:linear-gradient(180deg,var(--slate) 0%,#374d70 100%);
+  color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:14px;
 }
-.mkt-tabs::-webkit-scrollbar { display:none; }
-.tab {
-  padding:8px 24px; background:transparent;
-  border:1px solid transparent; border-bottom:none;
-  color:var(--dim2); font-family:'IBM Plex Sans',sans-serif;
-  font-weight:600; font-size:13px; cursor:pointer; letter-spacing:.3px;
-  transition:.12s; white-space:nowrap; flex-shrink:0;
-}
-.tab:hover { color:var(--text); }
-.tab.active {
-  color:var(--accent); border-color:var(--border);
-  background:var(--bg); margin-bottom:-1px;
-  border-bottom:1px solid var(--bg);
-}
+.card-hd .t{font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.card-hd .t small{font-weight:600;letter-spacing:.1em;color:#c9d7ec;margin-left:8px}
+.card-hd .r{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#c4d3e8;font-weight:600}
 
-/* ─── VIEW TOGGLE ─── */
-.vtoggle {
-  display:none; gap:8px; align-items:center;
-  padding:9px 22px; border-bottom:1px solid var(--border);
-  background:var(--panel2);
+/* ---------- Heat-map / data table ---------- */
+.tbl-wrap{overflow-x:auto}
+table.grid{border-collapse:collapse;width:100%;font-size:12px}
+table.grid th,table.grid td{border:1px solid var(--line);padding:5px 8px;white-space:nowrap}
+table.grid thead th{
+  background:#e9edf3;color:var(--ink-soft);font-weight:700;font-size:10.5px;
+  letter-spacing:.07em;text-transform:uppercase;position:sticky;top:0;
+  border-color:#cfd6e1;text-align:right;
 }
-.vtab {
-  padding:5px 18px; border:1px solid var(--border2);
-  background:transparent; color:var(--dim2);
-  font-family:'IBM Plex Sans',sans-serif; font-weight:600;
-  font-size:12px; cursor:pointer; letter-spacing:.3px;
-  transition:.12s; border-radius:2px;
+table.grid thead th.grp{
+  background:#41597f;color:#eaf1fb;text-align:center;letter-spacing:.12em;
+  border-color:#31456a;
 }
-.vtab.active { border-color:var(--accent); color:var(--accent); background:rgba(77,184,255,.07); }
-.vtab:hover:not(.active) { color:var(--text); border-color:var(--dim); }
-.vtab.pvf { }
-.vtab.pvf.active { border-color:var(--warn); color:var(--warn); background:rgba(255,212,77,.07); }
-.vtog-label { color:var(--dim); font-size:11px; font-family:'IBM Plex Mono',monospace; }
+table.grid thead th.lbl{text-align:left}
+table.grid td.lbl{
+  text-align:left;font-weight:700;color:var(--ink);background:#fbfcfe;
+  position:sticky;left:0;z-index:2;border-right:2px solid #cfd6e1;
+}
+table.grid td.num{text-align:right}
+table.grid tbody tr:nth-child(even) td:not(.lbl){background:var(--row-alt)}
+table.grid tbody tr:hover td{background:#eef3fb}
+table.grid tbody tr:hover td.lbl{background:#eef3fb}
+td.latest{font-weight:800;color:var(--ink);background:#f0f4fa !important;border-left:2px solid #cfd6e1;border-right:2px solid #cfd6e1}
+tr.pack-sep td{border-bottom:2px solid var(--line-strong)}
+tr.total td{background:#e4e9f1 !important;font-weight:800;color:var(--navy);
+  border-top:2px solid #9fb0c8}
+td.pack-label{background:#eef1f6 !important;color:var(--slate);font-weight:800;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;text-align:left}
+table.grid th.sepL,table.grid td.sepL{border-left:2px solid #aeb9ca}
+.delta-chip{display:inline-block;min-width:52px;text-align:right;font-family:var(--mono);
+  font-size:11px;font-weight:700}
+.up{color:var(--pos)} .down{color:var(--neg)} .flat{color:var(--muted)}
+.spark{display:block}
+.contract-sub{font-weight:600;color:var(--muted);font-size:10.5px;margin-left:6px}
 
-/* ─── MAIN ─── */
-.main { padding:14px 18px; }
+/* ---------- legend ---------- */
+.legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:10px 16px;border-top:1px solid var(--line);background:#fafbfd;
+  font-size:11px;color:var(--ink-soft)}
+.legend .ramp{display:inline-flex;height:12px;width:150px;border-radius:3px;overflow:hidden;
+  border:1px solid #cfd6e1;background:linear-gradient(90deg,#2f6fb0,#eef2f7 50%,#1f9d6b)}
+.legend .lg{display:flex;align-items:center;gap:6px}
+.legend b{color:var(--ink)}
 
-/* ─── EMPTY ─── */
-.empty {
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  min-height:320px; gap:14px; color:var(--dim);
-  font-family:'IBM Plex Mono',monospace; font-size:13px;
-}
-.empty-icon { font-size:42px; opacity:.25; }
+/* ---------- Series ---------- */
+.series-tools{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:12px 16px;
+  border-bottom:1px solid var(--line);background:#fafbfd}
+.chart-box{padding:16px;height:520px}
+.series-tools label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-soft);font-weight:700}
+select.pick{font-family:var(--sans);font-size:12px;padding:6px 10px;border:1px solid #c3ccda;
+  border-radius:6px;background:#fff;color:var(--ink)}
 
-/* ═══════════════════════════════════════════════════ HEATMAP */
-:root {
-  --hm-name-col: 170px;
-  --hm-oi-col:   105px;
-  --hm-gap:       14px;
-  --hm-cell:      86px;
-  --hm-grid-cols: var(--hm-name-col) var(--hm-oi-col) var(--hm-gap) repeat(6, var(--hm-cell)) var(--hm-gap) var(--hm-name-col) repeat(6, var(--hm-cell));
-}
+/* ---------- Pre vs Final ---------- */
+.pvf-actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn-ghost{background:#eef2f8;border:1px solid #c3ccda;color:var(--ink-soft)}
+.btn-ghost:hover{background:#e2e9f3;color:var(--navy)}
+.pvf-note{padding:10px 16px;font-size:11.5px;color:var(--ink-soft);background:#fafbfd;
+  border-top:1px solid var(--line)}
+.pvf-market-hd td{background:#eef1f6 !important;color:var(--slate);font-weight:800;
+  letter-spacing:.12em;text-transform:uppercase;font-size:10.5px}
 
-.main { overflow-x:auto; }
-
-.hm-col-header {
-  display:grid;
-  grid-template-columns: var(--hm-grid-cols);
-  grid-template-rows: auto auto;
-  width:max-content;
-  margin-left:auto; margin-right:auto;
-  border:1px solid var(--border); background:var(--panel3);
-  margin-bottom:3px;
+/* ---------- misc ---------- */
+.loading,.empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
+.tip{position:fixed;pointer-events:none;z-index:100;background:var(--navy);color:#eaf1fb;
+  font-size:11.5px;padding:8px 10px;border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.28);
+  opacity:0;transition:opacity .1s;max-width:260px;line-height:1.5}
+.tip b{color:#fff}
+.tip .k{color:#8fb0d8}
+footer{padding:8px 24px 26px;text-align:center;color:var(--muted);font-size:11px}
+footer a{color:var(--accent);text-decoration:none}
+@media (max-width:640px){
+  .brand h1{font-size:16px;letter-spacing:.1em}
+  main{padding:12px}
+  .card-hd .t{font-size:11px}
 }
-.hm-ch-lbl {
-  padding:7px 10px;
-  font-family:'IBM Plex Mono', monospace; font-size:10px;
-  color:var(--dim2); letter-spacing:.5px;
-  display:flex; flex-direction:column; justify-content:flex-end;
-  border-right:1px solid var(--border);
-}
-.hm-ch-oi {
-  padding:7px 10px;
-  font-family:'IBM Plex Mono', monospace; font-size:10px;
-  color:var(--dim2); letter-spacing:.5px;
-  display:flex; flex-direction:column; justify-content:flex-end;
-  border-right:1px solid var(--border);
-}
-.hm-ch-gap { background:var(--bg); grid-row:1 / span 2; }
-.hm-ch-side-title {
-  padding:4px 8px; font-size:10px; color:var(--accent);
-  letter-spacing:1px; text-transform:uppercase;
-  border-bottom:1px solid var(--border);
-  font-family:'IBM Plex Mono', monospace; font-weight:500;
-  text-align:center; border-right:1px solid var(--border);
-}
-.hm-ch-col {
-  padding:4px 6px; text-align:right;
-  font-family:'IBM Plex Mono', monospace; font-size:10px;
-  color:var(--dim2); border-right:1px solid rgba(46,63,88,.5);
-  grid-row:2;
-}
-.hm-ch-col:last-child { border-right:none; }
-
-.pack-block {
-  border:1px solid var(--border); background:var(--panel);
-  margin:0 auto 4px; overflow:hidden; width:max-content;
-}
-.pack-hdr {
-  display:grid;
-  grid-template-columns: var(--hm-grid-cols);
-  border-bottom:1px solid var(--border);
-  min-height:34px;
-}
-.pack-label {
-  display:flex; align-items:center; gap:6px; padding:6px 10px;
-  border-right:1px solid var(--border);
-}
-.pack-oi-cell {
-  display:flex; align-items:center; justify-content:flex-end; padding:6px 10px;
-  font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600;
-  color:var(--text); border-right:1px solid var(--border);
-}
-.pack-name {
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
-  font-weight:700; letter-spacing:2.4px;
-}
-.pack-gap { background:var(--bg); border-left:1px solid var(--border); border-right:1px solid var(--border); }
-
-.contract-row {
-  display:grid;
-  grid-template-columns: var(--hm-grid-cols);
-  border-top:1px solid rgba(46,63,88,.6);
-  min-height:32px;
-}
-.contract-row:hover { background:rgba(77,184,255,.04); }
-.contract-row.oi-shock { background:rgba(255,212,77,.045); }
-.contract-row.oi-shock:hover { background:rgba(255,212,77,.075); }
-.c-label {
-  display:flex; align-items:center; padding:4px 10px;
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
-  font-weight:500; color:var(--text2);
-  letter-spacing:.7px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  border-right:1px solid var(--border);
-}
-.shock-spark {
-  flex:0 0 auto; color:#ffd44d; font-size:12px; line-height:1;
-  margin:0 5px 0 1px; text-shadow:0 0 8px rgba(255,212,77,.65);
-}
-.contract-name { min-width:0; overflow:hidden; text-overflow:ellipsis; }
-.c-oi-cell {
-  display:flex; align-items:center; justify-content:flex-end; padding:4px 10px;
-  font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:500;
-  color:var(--text); border-right:1px solid var(--border);
-}
-.c-gap { background:var(--bg); border-left:1px solid var(--border); border-right:1px solid var(--border); }
-
-.cell {
-  display:flex; align-items:center; justify-content:flex-end;
-  padding:4px 10px;
-  font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:500;
-  color:#ffffff;
-  border-right:1px solid rgba(46,63,88,.4); white-space:nowrap;
-}
-.cell:last-child { border-right:none; }
-
-.grand-block {
-  border:1px solid rgba(77,184,255,.35);
-  background:rgba(77,184,255,.05); margin:6px auto 0; overflow:hidden; width:max-content;
-}
-.grand-hdr {
-  display:grid;
-  grid-template-columns: var(--hm-grid-cols);
-  min-height:38px;
-}
-.grand-label {
-  display:flex; align-items:center; padding:6px 10px;
-  border-right:1px solid rgba(77,184,255,.2);
-}
-.grand-oi-cell {
-  display:flex; align-items:center; justify-content:flex-end; padding:6px 10px;
-  font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:700;
-  color:var(--accent); border-right:1px solid rgba(77,184,255,.2);
-}
-.grand-name {
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
-  color:var(--accent); letter-spacing:1.7px;
-}
-.grand-gap { background:var(--bg); border-left:1px solid rgba(77,184,255,.2); border-right:1px solid rgba(77,184,255,.2); }
-.grand-cell {
-  display:flex; align-items:center; justify-content:flex-end;
-  padding:6px 8px;
-  font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:700;
-  color:#ffffff; border-right:1px solid rgba(77,184,255,.12);
-}
-.grand-cell:last-child { border-right:none; }
-
-/* ─── SERIES VIEW ─── */
-.series-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
-.s-card {
-  background:var(--panel); border:1px solid var(--border);
-  padding:14px 14px 10px; border-radius:2px;
-}
-.s-card-title {
-  font-family:'IBM Plex Mono', monospace;
-  font-size:13px; color:var(--text); font-weight:600;
-  letter-spacing:.5px; margin-bottom:10px;
-}
-.s-label {
-  margin-bottom:6px; margin-top:20px;
-  font-family:'IBM Plex Mono', monospace; font-size:10px;
-  color:var(--dim2); letter-spacing:1.5px; text-transform:uppercase;
-}
-
-/* ═══════════════════════════════════════════════════ PRE vs FINAL */
-
-/* Grid: name | final OI | diff — per market column */
-:root {
-  --pvf-name:  180px;
-  --pvf-oi:    110px;
-  --pvf-diff:  110px;
-  --pvf-cols:  var(--pvf-name) var(--pvf-oi) var(--pvf-diff);
-}
-
-.pvf-page {
-  display:flex;
-  gap:10px;
-  width:max-content;
-  margin:0 auto;
-}
-
-.pvf-snapshot-target {
-  width:max-content;
-  margin:0 auto;
-  background:var(--bg);
-  color:var(--text);
-}
-
-/* one market column */
-.pvf-mkt-col {
-  display:flex;
-  flex-direction:column;
-  border:1px solid var(--border);
-  min-width:calc(var(--pvf-name) + var(--pvf-oi) + var(--pvf-diff));
-}
-.pvf-mkt-col:last-child { border-right:1px solid var(--border); }
-
-/* market heading bar */
-.pvf-mkt-head {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:7px 10px;
-  background:var(--panel3);
-  border-bottom:1px solid var(--border);
-  min-height:30px;
-}
-.pvf-mkt-name {
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
-  font-weight:700; letter-spacing:2px; color:var(--accent);
-}
-.pvf-mkt-badge {
-  font-family:'IBM Plex Mono', monospace; font-size:9px;
-  color:var(--dim); letter-spacing:.5px;
-}
-
-/* column sub-headers */
-.pvf-col-hdr {
-  display:grid;
-  grid-template-columns: var(--pvf-cols);
-  border-bottom:1px solid var(--border);
-  background:var(--panel2);
-}
-.pvf-ch {
-  padding:5px 8px;
-  font-family:'IBM Plex Mono', monospace; font-size:9px;
-  color:var(--dim2); letter-spacing:.8px; text-transform:uppercase;
-  border-right:1px solid rgba(46,63,88,.5);
-}
-.pvf-ch:last-child { border-right:none; text-align:right; }
-.pvf-ch:nth-child(2) { text-align:right; }
-
-/* pack group */
-.pvf-pack-hdr {
-  display:grid;
-  grid-template-columns: var(--pvf-cols);
-  border-top:1px solid rgba(77,184,255,.22);
-  border-bottom:1px solid rgba(46,63,88,.7);
-  min-height:34px;
-  margin-top:12px;
-  box-shadow:0 -8px 0 var(--bg);
-}
-.pvf-col-hdr + .pvf-pack-hdr {
-  margin-top:0;
-  box-shadow:none;
-}
-.pvf-pack-name-cell {
-  display:flex; align-items:center; padding:6px 10px;
-  border-right:1px solid var(--border);
-}
-.pvf-pack-lbl {
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
-  font-weight:700; letter-spacing:2px;
-}
-.pvf-pack-sum {
-  display:flex; align-items:center; justify-content:flex-end;
-  padding:6px 8px;
-  font-family:'IBM Plex Mono', monospace; font-size:12px;
-  font-weight:600; color:var(--text);
-  border-right:1px solid var(--border);
-}
-.pvf-pack-diff {
-  display:flex; align-items:center; justify-content:flex-end;
-  padding:6px 8px;
-  font-family:'IBM Plex Mono', monospace; font-size:12px;
-  font-weight:600;
-}
-
-/* contract row */
-.pvf-row {
-  display:grid;
-  grid-template-columns: var(--pvf-cols);
-  border-top:1px solid rgba(46,63,88,.4);
-  min-height:29px;
-}
-.pvf-row:hover { background:rgba(77,184,255,.04); }
-.pvf-pack-end {
-  border-bottom:1px solid rgba(46,63,88,.75);
-}
-
-.pvf-c-name {
-  display:flex; align-items:center; padding:3px 10px;
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
-  font-weight:500; color:var(--text2); letter-spacing:.6px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  border-right:1px solid rgba(46,63,88,.5);
-}
-.pvf-c-oi {
-  display:flex; align-items:center; justify-content:flex-end;
-  padding:3px 8px;
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
-  color:var(--text); border-right:1px solid rgba(46,63,88,.5);
-}
-.pvf-c-diff {
-  display:flex; align-items:center; justify-content:flex-end;
-  padding:3px 8px;
-  font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600;
-}
-
-/* grand total row per market */
-.pvf-grand {
-  display:grid;
-  grid-template-columns: var(--pvf-cols);
-  border-top:1px solid rgba(77,184,255,.3);
-  background:rgba(77,184,255,.05);
-  min-height:32px;
-  margin-top:12px;
-  box-shadow:0 -8px 0 var(--bg);
-}
-.pvf-grand-lbl {
-  display:flex; align-items:center; padding:4px 10px;
-  font-family:'IBM Plex Mono', monospace; font-size:10px;
-  color:var(--accent); letter-spacing:1px;
-  border-right:1px solid rgba(77,184,255,.15);
-}
-.pvf-grand-oi {
-  display:flex; align-items:center; justify-content:flex-end;
-  padding:4px 8px;
-  font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:700;
-  color:var(--accent); border-right:1px solid rgba(77,184,255,.15);
-}
-.pvf-grand-diff {
-  display:flex; align-items:center; justify-content:flex-end;
-  padding:4px 8px;
-  font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:700;
-}
-
-/* meta info bar above the pvf table */
-.pvf-meta-bar {
-  display:flex; gap:24px; align-items:center;
-  padding:8px 0 10px;
-  font-family:'IBM Plex Mono', monospace; font-size:10px;
-  color:var(--dim); flex-wrap:wrap;
-}
-.pvf-meta-bar b { color:var(--text2); }
-.pvf-meta-spacer { flex:1 1 auto; min-width:20px; }
-.pvf-meta-tag {
-  padding:2px 8px; border-radius:2px; font-size:9px; letter-spacing:.7px;
-  border:1px solid; font-weight:600;
-}
-.pvf-meta-tag.pre   { border-color:rgba(80,232,144,.4); color:var(--accent2); }
-.pvf-meta-tag.final { border-color:rgba(255,212,77,.4); color:var(--warn); }
-.pvf-snapshot-btn {
-  padding:5px 12px;
-  border:1px solid rgba(255,212,77,.55);
-  background:rgba(255,212,77,.08);
-  color:var(--warn);
-  font-family:'IBM Plex Sans',sans-serif;
-  font-size:11px;
-  font-weight:600;
-  letter-spacing:.5px;
-  cursor:pointer;
-  border-radius:2px;
-  transition:.15s;
-}
-.pvf-snapshot-btn:hover { background:var(--warn); color:#10161f; }
-.pvf-snapshot-btn:disabled {
-  cursor:wait;
-  opacity:.62;
-  background:rgba(255,212,77,.08);
-  color:var(--warn);
-}
-
-/* ─── LOADING ─── */
-#lo {
-  display:none; position:fixed; inset:0;
-  background:rgba(16,22,31,.88); z-index:999;
-  flex-direction:column; align-items:center; justify-content:center; gap:14px;
-}
-#lo.show { display:flex; }
-.spin {
-  width:38px; height:38px; border:2px solid var(--border);
-  border-top-color:var(--accent); border-radius:50%;
-  animation:spin .7s linear infinite;
-}
-@keyframes spin{to{transform:rotate(360deg)}}
-.lo-msg {
-  font-family:'IBM Plex Mono', monospace; font-size:12px;
-  color:var(--accent); letter-spacing:2px;
-}
-
-/* ─── TOOLTIP ─── */
-#tip {
-  position:fixed; background:#1a2438; border:1px solid var(--accent);
-  color:var(--text); padding:7px 12px;
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
-  pointer-events:none; z-index:200; display:none; line-height:1.9;
-  border-radius:2px; box-shadow:0 4px 20px rgba(0,0,0,.5);
-}
-.spark-tip-title  { color:var(--accent); font-weight:600; letter-spacing:.8px; margin-bottom:4px; }
-.spark-tip-canvas { display:block; width:240px; height:92px; }
-
-@media(max-width:1100px){ .series-grid{ grid-template-columns:repeat(3,1fr); } }
-@media(max-width:800px) { .series-grid{ grid-template-columns:repeat(2,1fr); } }
-@media(max-width:500px) { .series-grid{ grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
-<div class="app">
-<div id="lo"><div class="spin"></div><div class="lo-msg">LOADING OI DATA…</div></div>
-<div id="tip"></div>
-
-<header>
-  <div class="logo">OI PROFILE</div>
-  <div class="hdr-meta">
-    <div class="hdr-stat"><span>LATEST</span><b id="hdrDate">—</b></div>
-    <div class="hdr-stat"><span>MARKETS</span><b id="hdrMkts">—</b></div>
-    <div class="hdr-stat"><span>CONTRACTS</span><b id="hdrCtrs">—</b></div>
-  </div>
-  <div class="hdr-right">
-    <div class="dot" id="dot"></div>
-    <div class="published-at" title="Last published timestamp">
-      <span>PUBLISHED</span>
-      <b id="hdrPublished">—</b>
+<header class="topbar">
+  <div class="brand">
+    <div class="l1">
+      <h1>OI&nbsp;Profile</h1>
+      <span class="sub">Open&nbsp;Interest&nbsp;Dashboard</span>
     </div>
-    <button class="btn g" onclick="fetchData()">⟳ REFRESH</button>
-    <a class="admin-link" href="/admin/login" target="_blank" rel="noopener noreferrer" title="Admin login"></a>
+    <div class="meta">
+      <span>As of <b id="m-date">—</b></span>
+      <span><b id="m-mkts">—</b> markets</span>
+      <span><b id="m-contracts">—</b> contracts</span>
+      <span>Updated <b id="m-updated">—</b></span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="livedot"><i></i> Live</span>
+    <button class="btn btn-refresh" id="btn-refresh">↻ Refresh</button>
   </div>
 </header>
 
-<div class="mkt-tabs" id="mktTabs"></div>
-
-<div class="vtoggle" id="vtog">
-  <span class="vtog-label">VIEW:</span>
-  <button class="vtab active" id="vtabHeatmap"  onclick="switchView('heatmap',this)">⬛ HEATMAP</button>
-  <button class="vtab"        id="vtabSeries"   onclick="switchView('series',this)">📈 SERIES</button>
-  <button class="vtab pvf"    id="vtabPvf"      onclick="switchView('pvf',this)">◈ PRE vs FINAL</button>
-</div>
-
-<div class="main" id="mc">
-  <div class="empty">
-    <div class="empty-icon">[OI]</div>
-    <div>FETCHING DASHBOARD DATA…</div>
+<div class="controls">
+  <div class="tabs" id="tabs"></div>
+  <div class="viewtoggle">
+    <div class="seg" id="seg">
+      <button data-v="heatmap" class="active">▦ Heat-map</button>
+      <button data-v="series">📈 Series</button>
+      <button data-v="pvf">◈ Pre vs Final</button>
+    </div>
   </div>
 </div>
-</div>
+
+<main id="content">
+  <div class="loading">Loading open-interest data…</div>
+</main>
+
+<footer>
+  Rates open-interest profiles · SR3 · Fed Funds · Treasuries · Euribor · SONIA · Brazil · CORRA
+  &nbsp;·&nbsp; auto-refreshes from the published workbook
+</footer>
+
+<div class="tip" id="tip"></div>
 
 <script>
-// ── STATE ──
-const S = {
-  markets:{}, marketOrder:[], active:null,
-  view:'heatmap', charts:{},
-  pvf:     null,   // pre-vs-final payload
-  pvfLive: false,  // true only when current dataset is_final AND snapshot exists
+/* ============================ STATE ============================ */
+const S = { markets:{}, order:[], active:null, view:'heatmap', pvf:null, charts:[] };
+const COLS = 12;                 // recent trading days shown in heat-map
+const MARKET_LABELS = {
+  SR3:'SOFR 3-Month · SR3', FF:'Fed Funds 30-Day · ZQ / FF',
+  treasuries:'US Treasury Futures', ER:'Euribor 3-Month · ER',
+  SONIA:'SONIA 3-Month · SFI', Brazil:'Brazil DI1', CORRA:'CORRA 3-Month · CRA'
 };
+const STIR = new Set(['SR3','ER','SONIA','CORRA','FF']);   // pack-separated chains
 
-const PACK_COLORS = [
-  { name:'WHITES',  sideColor:'#b8c8dc', sideText:'#101820' },
-  { name:'REDS',    sideColor:'#c83050', sideText:'#ffe0e8' },
-  { name:'GREENS',  sideColor:'#1e7848', sideText:'#b0f0c8' },
-  { name:'BLUES',   sideColor:'#1e50a0', sideText:'#b0d0ff' },
-  { name:'GOLDS',   sideColor:'#a07800', sideText:'#ffe080' },
-  { name:'PURPLES', sideColor:'#6030a0', sideText:'#e0b8ff' },
-  { name:'ORANGES', sideColor:'#c05010', sideText:'#ffc080' },
-  { name:'PINKS',   sideColor:'#c04090', sideText:'#ffd0ec' },
-  { name:'SILVERS', sideColor:'#9aa6b2', sideText:'#101820' },
-  { name:'COPPERS', sideColor:'#a85828', sideText:'#ffd4b8' },
-];
-const SOFR_PACKS = PACK_COLORS.map((pack, i) => ({
-  ...pack,
-  start:i * 4,
-  end:i * 4 + 3,
-}));
-const TREAS_PACKS = [
-  { name:'2 YR',  start:0, end:0,  sideColor:'#1e50a0', sideText:'#b0d0ff' },
-  { name:'5 YR',  start:1, end:1,  sideColor:'#1e7848', sideText:'#b0f0c8' },
-  { name:'10 YR', start:2, end:3,  sideColor:'#a07800', sideText:'#ffe080' },
-  { name:'30 YR', start:4, end:5,  sideColor:'#882040', sideText:'#ffc0d8' },
-];
-const TREAS_KEYWORDS = ['treas','tnote','tbond','zn','zb','zt','zf','ultra'];
+/* ============================ HELPERS ============================ */
+const $ = s => document.querySelector(s);
+function fmtOI(v){
+  if(v===null||v===undefined||v==='') return '·';
+  const n=Number(v); if(!isFinite(n)) return '·';
+  const a=Math.abs(n);
+  if(a>=1e6) return (n/1e6).toFixed(2)+'M';
+  if(a>=1e3) return (n/1e3).toFixed(a>=1e5?0:1)+'K';
+  return String(Math.round(n));
+}
+function fmtSigned(v){
+  if(v===null||v===undefined||!isFinite(v)) return '·';
+  const s=v>0?'+':(v<0?'−':'');
+  return s+fmtOI(Math.abs(v));
+}
+function pct(a,b){ if(a===null||b===null||b===0||a===undefined||b===undefined) return null; return (a-b)/Math.abs(b)*100; }
+function parseD(s){ // dd/mm/yy -> Date
+  const m=/^(\d{2})\/(\d{2})\/(\d{2})$/.exec(String(s)); if(!m) return null;
+  return new Date(2000+ +m[3], +m[2]-1, +m[1]);
+}
+function heatColor(t){ // t in [-1,1] : blue(neg) -> white -> green(pos)
+  if(t===null||!isFinite(t)) return 'transparent';
+  if(Math.abs(t)<0.04) return 'transparent';
+  if(t>0){ const a=Math.min(1,t); return `rgba(31,157,107,${(0.10+0.6*a).toFixed(3)})`; }
+  const a=Math.min(1,-t); return `rgba(47,111,176,${(0.10+0.6*a).toFixed(3)})`;
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-// Markets shown on the Pre vs Final page
-const PVF_MARKET_KEYS = ['sr3','ff','treas','tnote','tbond','zn','zb','zt','zf','ultra'];
+/* ============================ DATA ============================ */
+async function fetchData(){
+  try{
+    const r = await fetch('/api/dashboard-data',{cache:'no-store'});
+    if(!r.ok) throw new Error('no data');
+    const d = await r.json();
+    S.markets = d.markets||{}; S.order = d.market_order||[];
+    if(!S.active || !S.markets[S.active]) S.active = S.order[0]||null;
+    $('#m-date').textContent = d.latest_date||'—';
+    $('#m-mkts').textContent = d.markets_count ?? S.order.length;
+    $('#m-contracts').textContent = d.contracts_count ?? '—';
+    $('#m-updated').textContent = fmtUpdated(d.updated_at);
+    buildTabs(); render();
+  }catch(e){
+    $('#content').innerHTML = '<div class="card"><div class="empty">No data published yet. Once a workbook is uploaded on the admin panel it appears here automatically.</div></div>';
+  }
+}
+function fmtUpdated(iso){
+  if(!iso) return '—';
+  try{ const d=new Date(iso); return d.toLocaleString(undefined,{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return iso; }
+}
+async function ensurePvf(){
+  if(S.pvf!==null) return S.pvf;
+  try{ const r=await fetch('/api/pre-vs-final',{cache:'no-store'}); S.pvf = r.ok ? await r.json() : {error:true}; }
+  catch(e){ S.pvf={error:true}; }
+  return S.pvf;
+}
 
-function isBrazilMarket(name) {
-  const lc = String(name).toLowerCase();
-  return lc.includes('brazil') || lc.includes('brl');
-}
-function isBrazilContract(contract) {
-  return /^[FJNV]\d{2}$/i.test(String(contract).trim());
-}
-function marketContractCap(name) {
-  const lc = String(name).trim().toLowerCase();
-  if (lc.includes('sr3')) return 24;
-  if (lc === 'er' || lc.includes('so3') || lc.includes('sonia')) return 20;
-  return null;
-}
-function isFFMarket(name) {
-  const lc = String(name).toLowerCase();
-  return /(^|[^a-z0-9])ff($|[^a-z0-9])/.test(lc) || lc.includes('fed fund');
-}
-function ffPackName(contract) {
-  const m = String(contract).trim().toUpperCase().match(/^([FGHJKMNQUVXZ])(\d{2})$/);
-  if (!m) return null;
-  const q = {
-    F:'Q1', G:'Q1', H:'Q1',
-    J:'Q2', K:'Q2', M:'Q2',
-    N:'Q3', Q:'Q3', U:'Q3',
-    V:'Q4', X:'Q4', Z:'Q4',
-  }[m[1]];
-  return q ? `${q} ${m[2]}` : null;
-}
-function ffPacks(contracts) {
-  const byName = new Map();
-  contracts.forEach(c => {
-    const name = ffPackName(c);
-    if (!name) return;
-    if (!byName.has(name)) byName.set(name, []);
-    byName.get(name).push(c);
-  });
-  return Array.from(byName, ([name, members], i) => ({
-    name,
-    contracts:members,
-    sideColor:PACK_COLORS[i % PACK_COLORS.length].sideColor,
-    sideText:PACK_COLORS[i % PACK_COLORS.length].sideText,
-  }));
-}
-function normalizeMarketContracts(markets) {
-  Object.entries(markets).forEach(([name, mkt]) => {
-    if (!Array.isArray(mkt.contracts)) return;
-    if (isBrazilMarket(name)) mkt.contracts = mkt.contracts.filter(isBrazilContract);
-    const cap = marketContractCap(name);
-    if (cap !== null) mkt.contracts = mkt.contracts.slice(0, cap);
+/* ============================ CHROME ============================ */
+function buildTabs(){
+  const box=$('#tabs'); box.innerHTML='';
+  S.order.forEach(m=>{
+    const b=document.createElement('button');
+    b.className='tab'+(m===S.active?' active':'');
+    b.textContent=(m==='treasuries')?'Treasuries':m;
+    b.onclick=()=>{ S.active=m; buildTabs(); render(); };
+    box.appendChild(b);
   });
 }
-function packsForMarket(name, contracts = []) {
-  const lc = name.toLowerCase();
-  if (TREAS_KEYWORDS.some(k => lc.includes(k))) return TREAS_PACKS;
-  if (isFFMarket(name)) return ffPacks(contracts);
-  return SOFR_PACKS;
-}
-function isPvfMarket(name) {
-  const lc = name.toLowerCase();
-  return PVF_MARKET_KEYS.some(k => lc.includes(k));
-}
-
-const DIFFS = [
-  { label:'1D',  i:1  },
-  { label:'2D',  i:2  },
-  { label:'3D',  i:3  },
-  { label:'5D',  i:5  },
-  { label:'11D', i:11 },
-  { label:'21D', i:21 },
-];
-const LINE_COLORS = [
-  '#4db8ff','#50e890','#ffd44d','#ff6b6b',
-  '#b088ff','#ff9f50','#40ddb0','#ff80c0','#80b8ff'
-];
-
-const nearestCrosshair = {
-  id:'nearestCrosshair',
-  afterDraw(chart) {
-    const active = chart.tooltip?.getActiveElements?.() ?? [];
-    if (!active.length) return;
-    const el = active[0].element;
-    if (!el) return;
-    const {ctx, chartArea} = chart;
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(el.x, chartArea.top);
-    ctx.lineTo(el.x, chartArea.bottom);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(220,232,248,.65)';
-    ctx.setLineDash([3,3]);
-    ctx.stroke();
-    ctx.restore();
-  }
-};
-Chart.register(nearestCrosshair);
-
-// ── DATA FETCH ──
-async function fetchData() {
-  loading(true);
-  try {
-    const [dashRes, pvfRes] = await Promise.all([
-      fetch('/api/dashboard-data'),
-      fetch('/api/pre-vs-final'),
-    ]);
-    if (!dashRes.ok) throw new Error('No data available.');
-    const payload = await dashRes.json();
-    S.pvf = pvfRes.ok ? await pvfRes.json() : null;
-    ingestPayload(payload);
-  } catch(e) {
-    document.getElementById('mc').innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">[!]</div>
-        <div>${e.message}</div>
-      </div>`;
-  } finally {
-    loading(false);
-  }
-}
-
-function ingestPayload(payload) {
-  S.markets     = payload.markets || {};
-  normalizeMarketContracts(S.markets);
-  S.marketOrder = Array.isArray(payload.market_order)
-    ? payload.market_order.filter(n => Object.prototype.hasOwnProperty.call(S.markets, n))
-    : Object.keys(S.markets);
-  const seen = new Set(S.marketOrder);
-  Object.keys(S.markets).forEach(n => { if (!seen.has(n)) S.marketOrder.push(n); });
-  const mkts = S.marketOrder;
-  if (!mkts.length) {
-    document.getElementById('mc').innerHTML = `<div class="empty"><div class="empty-icon">[OI]</div><div>NO DATA PUBLISHED YET</div></div>`;
-    return;
-  }
-  S.active = mkts[0];
-  const contractsCount = Object.values(S.markets).reduce((s,m) => s + (m.contracts?.length || 0), 0);
-  document.getElementById('hdrDate').textContent      = payload.latest_date || '—';
-  document.getElementById('hdrMkts').textContent      = payload.markets_count || mkts.length;
-  document.getElementById('hdrCtrs').textContent      = contractsCount || payload.contracts_count || 0;
-  const publishedEl = document.getElementById('hdrPublished');
-  publishedEl.textContent = formatPublishedTime(payload.updated_at);
-  publishedEl.parentElement.title = payload.updated_at
-    ? `Last published: ${payload.updated_at}` : 'Last published timestamp';
-
-  // PvF tab is live ONLY when the current dataset was published as Final OI.
-  S.pvfLive = payload.is_final === true && S.pvf !== null;
-
-  buildTabs();
-  document.getElementById('vtog').style.display = 'flex';
-
-  const pvfTab = document.getElementById('vtabPvf');
-  if (S.pvfLive) {
-    pvfTab.style.opacity = '1';
-    pvfTab.style.cursor  = 'pointer';
-    pvfTab.title = 'Pre vs Final comparison';
-  } else {
-    pvfTab.style.opacity = '0.38';
-    pvfTab.style.cursor  = 'pointer';
-    pvfTab.title = payload.is_final
-      ? 'No Pre OI snapshot found — upload a Pre OI file first, then a Final OI file'
-      : 'Active only after a Final OI file is published — current data is Pre OI';
-  }
-
-  render();
-  document.getElementById('dot').classList.add('live');
-}
-
-// ── TABS ──
-function buildTabs() {
-  const el = document.getElementById('mktTabs');
-  el.innerHTML = '';
-
-  // For PvF view we use a fixed page, not per-market tabs — so we hide normal tabs when pvf is active
-  if (S.view === 'pvf') {
-    const b = document.createElement('span');
-    b.style.cssText = 'padding:8px 14px;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--warn);letter-spacing:1px;align-self:center;';
-    b.textContent = '◈ PRE vs FINAL — SR3 · FF · TREASURIES';
-    el.appendChild(b);
-    return;
-  }
-
-  S.marketOrder.forEach(n => {
-    const b = document.createElement('button');
-    b.className = 'tab' + (n === S.active ? ' active' : '');
-    b.textContent = n;
-    b.onclick = () => {
-      S.active = n;
-      el.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      b.classList.add('active');
-      render();
-    };
-    el.appendChild(b);
-  });
-}
-
-function switchView(v, el) {
-  S.view = v;
-  document.querySelectorAll('.vtab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  buildTabs();
+function setView(v){
+  S.view=v;
+  document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
   render();
 }
+function killCharts(){ S.charts.forEach(c=>{try{c.destroy()}catch(e){}}); S.charts=[]; }
 
-// ── RENDER ──
-function render() {
+/* ============================ RENDER ROUTER ============================ */
+function render(){
   killCharts();
-  const mc = document.getElementById('mc');
-  mc.innerHTML = '';
-  if (S.view === 'heatmap') { renderHeatmap(mc); return; }
-  if (S.view === 'series')  { renderSeries(mc);  return; }
-  if (S.view === 'pvf')     { renderPvf(mc);     return; }
+  const c=$('#content');
+  if(!S.active){ c.innerHTML='<div class="card"><div class="empty">No markets available.</div></div>'; return; }
+  if(S.view==='heatmap') renderHeatmap(c);
+  else if(S.view==='series') renderSeries(c);
+  else renderPvf(c);
 }
-function killCharts() { Object.values(S.charts).forEach(c => c.destroy()); S.charts = {}; }
 
-// ── HEATMAP ──
-function renderHeatmap(mc) {
-  const mkt = S.markets[S.active];
-  const { contracts, dates, data } = mkt;
-  const d0 = dates[0];
-  const packs = packsForMarket(S.active, contracts);
-  const grandByDate = {};
-  dates.forEach(d => { grandByDate[d] = contracts.reduce((s,c) => s + (data[c][d] || 0), 0); });
-
-  const colHdr = document.createElement('div');
-  colHdr.className = 'hm-col-header';
-  colHdr.innerHTML = `
-    <div class="hm-ch-lbl"  style="grid-column:1;grid-row:1 / span 2">CONTRACT</div>
-    <div class="hm-ch-oi"   style="grid-column:2;grid-row:1 / span 2">LATEST OI</div>
-    <div class="hm-ch-gap"  style="grid-column:3"></div>
-    <div class="hm-ch-side-title" style="grid-column:4 / span 6;grid-row:1">% CHANGE FROM LATEST &nbsp;[%]</div>
-    ${DIFFS.map((d,i)=>`<div class="hm-ch-col" style="grid-column:${4+i}">${d.label}</div>`).join('')}
-    <div class="hm-ch-gap"  style="grid-column:10"></div>
-    <div class="hm-ch-lbl"  style="grid-column:11;grid-row:1 / span 2">CONTRACT</div>
-    <div class="hm-ch-side-title" style="grid-column:12 / span 6;grid-row:1">ABSOLUTE DELTA</div>
-    ${DIFFS.map((d,i)=>`<div class="hm-ch-col" style="grid-column:${12+i}">${d.label}</div>`).join('')}`;
-  mc.appendChild(colHdr);
-
-  packs.forEach(pack => {
-    const pContracts = pack.contracts || contracts.slice(pack.start, pack.end + 1);
-    if (!pContracts.length) return;
-    const packOI = {};
-    dates.forEach(d => { packOI[d] = pContracts.reduce((s,c) => s + (data[c][d] || 0), 0); });
-    const sc = pack.sideColor, st = pack.sideText;
-    const block = document.createElement('div');
-    block.className = 'pack-block';
-    const pHdr = document.createElement('div');
-    pHdr.className = 'pack-hdr';
-    pHdr.style.background = `${sc}22`;
-    pHdr.innerHTML = `
-      <div class="pack-label" style="background:${sc};border-right:1px solid ${sc}">
-        <span class="pack-name" style="color:${st}">${pack.name}</span>
-      </div>
-      <div class="pack-oi-cell">${fmtOI(packOI[d0])}</div>
-      <div class="pack-gap"></div>
-      ${DIFFS.map(df => cellHTML(packOI[d0], packOI[dates[df.i]], 'pct', true)).join('')}
-      <div class="pack-gap"></div>
-      <div class="pack-label" style="background:${sc};border-right:1px solid ${sc}">
-        <span class="pack-name" style="color:${st}">${pack.name}</span>
-      </div>
-      ${DIFFS.map(df => cellHTML(packOI[d0], packOI[dates[df.i]], 'abs', true)).join('')}`;
-    block.appendChild(pHdr);
-
-    pContracts.forEach(c => {
-      const row   = document.createElement('div');
-      const shock = oiShock(data[c], dates);
-      row.className = 'contract-row' + (shock ? ' oi-shock' : '');
-      const oi0     = data[c][d0];
-      const labelHTML = contractLabelHTML(c, sc, shock);
-      row.innerHTML = `
-        ${labelHTML}
-        <div class="c-oi-cell">${fmtOI(oi0)}</div>
-        <div class="c-gap"></div>
-        ${DIFFS.map(df => cellHTML(oi0, dates[df.i] ? data[c][dates[df.i]] : null, 'pct', false)).join('')}
-        <div class="c-gap"></div>
-        ${labelHTML}
-        ${DIFFS.map(df => cellHTML(oi0, dates[df.i] ? data[c][dates[df.i]] : null, 'abs', false)).join('')}`;
-      // Tooltip only activates when hovering the contract name label cells
-      row.querySelectorAll('.c-label').forEach(lbl => {
-        lbl.style.cursor = 'default';
-        lbl.addEventListener('mouseenter', e => showTip(e, c, data[c], dates));
-        lbl.addEventListener('mousemove',  moveTip);
-        lbl.addEventListener('mouseleave', hideTip);
-      });
-      block.appendChild(row);
+/* ============================ HEAT-MAP ============================ */
+function renderHeatmap(c){
+  const mk=S.markets[S.active]; if(!mk){c.innerHTML='';return;}
+  const dates=mk.dates||[];                          // newest-first
+  const contracts=mk.contracts||[];
+  const latestD=dates[0];
+  // change horizons in trading-day offsets — mirrors the Futures OI summary (1D…4W)
+  const HZ=[['1D',1],['3D',3],['1W',5],['2W',10],['3W',15],['4W',20],['2M',42],['3M',63]];
+  const chNum={}, chPct={};
+  const maxN=HZ.map(()=>0), maxP=HZ.map(()=>0);
+  contracts.forEach(ct=>{
+    const cur=mk.data[ct]?.[latestD];
+    chNum[ct]=HZ.map(([,off],i)=>{
+      const past=mk.data[ct]?.[dates[off]];
+      if(cur==null||past==null) return null;
+      const d=cur-past; if(Math.abs(d)>maxN[i]) maxN[i]=Math.abs(d); return d;
     });
-    mc.appendChild(block);
-  });
-
-  const gb = document.createElement('div');
-  gb.className = 'grand-block';
-  gb.innerHTML = `
-    <div class="grand-hdr">
-      <div class="grand-label"><span class="grand-name">GROSS TOTAL</span></div>
-      <div class="grand-oi-cell">${fmtOI(grandByDate[d0])}</div>
-      <div class="grand-gap"></div>
-      ${DIFFS.map(df => grandCell(grandByDate[d0], grandByDate[dates[df.i]], 'pct')).join('')}
-      <div class="grand-gap"></div>
-      <div class="grand-label"><span class="grand-name">GROSS TOTAL</span></div>
-      ${DIFFS.map(df => grandCell(grandByDate[d0], grandByDate[dates[df.i]], 'abs')).join('')}
-    </div>`;
-  mc.appendChild(gb);
-}
-
-function contractLabelHTML(name, sideColor, shock) {
-  const spark = shock
-    ? '<span class="shock-spark" title="Latest 1D OI move exceeds 2 sigma and 5K absolute change">✦</span>'
-    : '';
-  return `<div class="c-label" style="border-left:3px solid ${sideColor}">${spark}<span class="contract-name">${escapeHTML(name)}</span></div>`;
-}
-
-function oiShock(cData, dates) {
-  if (!cData || dates.length < 4) return false;
-  const latest = Number(cData[dates[0]]);
-  const prev   = Number(cData[dates[1]]);
-  if (!Number.isFinite(latest) || !Number.isFinite(prev)) return false;
-  const latestDelta = latest - prev;
-  if (Math.abs(latestDelta) <= 5000) return false;
-  const history = [];
-  for (let i = 1; i < dates.length - 1; i++) {
-    const a = Number(cData[dates[i]]);
-    const b = Number(cData[dates[i+1]]);
-    if (Number.isFinite(a) && Number.isFinite(b)) history.push(a - b);
-  }
-  if (history.length < 2) return false;
-  const mean     = history.reduce((s,v) => s+v, 0) / history.length;
-  const variance = history.reduce((s,v) => s + Math.pow(v - mean, 2), 0) / history.length;
-  const sigma    = Math.sqrt(variance);
-  return sigma > 0 && Math.abs(latestDelta - mean) >= 2 * sigma;
-}
-
-function cellHTML(lat, prev, mode, isHeader) {
-  const cls = 'cell' + (isHeader ? ' pack-cell' : '');
-  if (lat == null || prev == null) return `<div class="${cls}" style="color:#5a7a9a">—</div>`;
-  const delta = lat - prev;
-  const pct   = prev !== 0 ? (delta / prev) * 100 : 0;
-  const val   = mode === 'pct' ? pct : delta;
-  const pos   = val > 0, neg = val < 0;
-  const ref   = mode === 'pct' ? Math.abs(pct) : (lat ? Math.abs(delta / lat) * 100 : 0);
-  const inten = Math.min(ref, 20) / 20;
-  const bg    = pos
-    ? `rgba(30,150,70,${0.15 + inten * 0.45})`
-    : neg
-    ? `rgba(180,30,50,${0.15 + inten * 0.45})`
-    : 'transparent';
-  const txt = mode === 'pct'
-    ? (pos ? '+' : '') + pct.toFixed(0)
-    : (pos ? '+' : '') + fmt(delta);
-  return `<div class="${cls}" style="background:${bg};color:#ffffff">${txt}</div>`;
-}
-
-function grandCell(lat, prev, mode) {
-  if (lat == null || prev == null) return `<div class="grand-cell" style="color:#5a7a9a">—</div>`;
-  const delta = lat - prev;
-  const pct   = prev !== 0 ? (delta / prev) * 100 : 0;
-  const val   = mode === 'pct' ? pct : delta;
-  const pos   = val > 0, neg = val < 0;
-  const ref   = mode === 'pct' ? Math.abs(pct) : (lat ? Math.abs(delta / lat) * 100 : 0);
-  const inten = Math.min(ref, 20) / 20;
-  const bg    = pos
-    ? `rgba(30,150,70,${0.15 + inten * 0.5})`
-    : neg
-    ? `rgba(180,30,50,${0.15 + inten * 0.5})`
-    : 'transparent';
-  const txt   = mode === 'pct'
-    ? (pos ? '+' : '') + pct.toFixed(0)
-    : (pos ? '+' : '') + fmt(delta);
-  return `<div class="grand-cell" style="background:${bg};color:#ffffff">${txt}</div>`;
-}
-
-// ── SERIES ──
-function renderSeries(mc) {
-  const mkt = S.markets[S.active];
-  const { contracts, dates, data } = mkt;
-  const top12    = contracts.slice(0, 12);
-  const ordDates = [...dates].reverse();
-
-  const lbl = document.createElement('div');
-  lbl.className   = 's-label';
-  lbl.textContent = 'OI TIME SERIES — FIRST 12 CONTRACTS';
-  mc.appendChild(lbl);
-
-  const grid = document.createElement('div');
-  grid.className = 'series-grid';
-
-  top12.forEach((c, i) => {
-    const color = LINE_COLORS[i % LINE_COLORS.length];
-    const card  = document.createElement('div');
-    card.className = 's-card';
-    card.innerHTML = `<div class="s-card-title" style="color:${color}">${c}</div>`;
-    const cv = document.createElement('canvas');
-    card.appendChild(cv);
-    grid.appendChild(card);
-    setTimeout(() => {
-      const chartH = 216;
-      cv.parentElement.style.height = chartH + 'px';
-      cv.style.height = chartH + 'px';
-      const chart = new Chart(cv.getContext('2d'), {
-        type:'line',
-        data:{
-          labels: ordDates,
-          datasets:[{
-            data: ordDates.map(d => data[c][d] ?? null),
-            borderColor: color,
-            backgroundColor: hexAlpha(color, .10),
-            borderWidth:2, pointRadius:0, pointHoverRadius:4,
-            fill:true, tension:.3, spanGaps:true,
-          }]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false, animation:{duration:300},
-          interaction:{mode:'nearest',axis:'x',intersect:false},
-          plugins:{
-            legend:{display:false},
-            tooltip:{
-              backgroundColor:'#1a2438', borderColor:'#3a5070', borderWidth:1,
-              titleColor:color, bodyColor:'#dce8f8', displayColors:false,
-              titleFont:{family:"'IBM Plex Mono',monospace",size:10},
-              bodyFont: {family:"'IBM Plex Mono',monospace",size:11},
-              callbacks:{
-                title: ctx => 'Date: ' + formatTooltipDate(ctx[0].label),
-                label: ctx => 'OI: ' + fmtOI(ctx.raw),
-              }
-            }
-          },
-          scales:{
-            x:{ticks:{color:'#7a95b8',font:{family:"'IBM Plex Mono',monospace",size:9},maxTicksLimit:6,maxRotation:0},grid:{color:'#1e2d40'}},
-            y:{ticks:{color:'#7a95b8',font:{family:"'IBM Plex Mono',monospace",size:9},callback:v=>fmtOI(v)},grid:{color:'#1e2d40'}},
-          }
-        }
-      });
-      chart.resize();
-      S.charts[c] = chart;
-    }, 0);
-  });
-  mc.appendChild(grid);
-
-  const lbl2 = document.createElement('div');
-  lbl2.className = 's-label';
-  lbl2.style.marginTop = '22px';
-  lbl2.textContent = 'AGGREGATE OVERLAY — TOP 12';
-  mc.appendChild(lbl2);
-
-  const aggCard = document.createElement('div');
-  aggCard.className = 's-card';
-  const aggCv = document.createElement('canvas');
-  aggCard.appendChild(aggCv);
-  mc.appendChild(aggCard);
-
-  setTimeout(() => {
-    const totalSeries = top12.length;
-    const ds = top12.map((c, i) => ({
-      label: c,
-      data:  ordDates.map(d => data[c][d] ?? null),
-      hidden: (() => {
-        if (totalSeries >= 8) return !(i % 2 === 0 && i < 8);
-        const altVisible   = Math.ceil(totalSeries / 2);
-        const extraNeeded  = Math.max(0, 4 - altVisible);
-        if (i % 2 === 0) return false;
-        return !(i % 2 === 1 && i <= (extraNeeded * 2 - 1));
-      })(),
-      borderColor:     LINE_COLORS[i % LINE_COLORS.length],
-      backgroundColor: 'transparent',
-      borderWidth:1.4, pointRadius:0, pointHoverRadius:3,
-      fill:false, tension:.3, spanGaps:true,
-    }));
-    const aggH  = 600;
-    const chart = new Chart(aggCv.getContext('2d'), {
-      type:'line',
-      data:{labels:ordDates, datasets:ds},
-      options:{
-        responsive:true, maintainAspectRatio:false, animation:{duration:500},
-        interaction:{mode:'nearest',axis:'x',intersect:false},
-        plugins:{
-          legend:{display:true,labels:{color:'#9ab0cc',font:{family:"'IBM Plex Mono',monospace",size:12},boxWidth:10,padding:12}},
-          tooltip:{
-            backgroundColor:'#1a2438', borderColor:'#3a5070', borderWidth:1,
-            titleColor:'#7a95b8', bodyColor:'#dce8f8', displayColors:false,
-            titleFont:{family:"'IBM Plex Mono',monospace",size:10},
-            bodyFont: {family:"'IBM Plex Mono',monospace",size:14},
-            callbacks:{
-              title: ctx => 'Date: ' + formatTooltipDate(ctx[0].label),
-              label: ctx => ctx.dataset.label + ' OI: ' + fmtOI(ctx.raw),
-            }
-          }
-        },
-        scales:{
-          x:{ticks:{color:'#7a95b8',font:{family:"'IBM Plex Mono',monospace",size:9},maxTicksLimit:8,maxRotation:0},grid:{color:'#1e2d40'}},
-          y:{ticks:{color:'#7a95b8',font:{family:"'IBM Plex Mono',monospace",size:9},callback:v=>fmtOI(v)},grid:{color:'#1e2d40'}},
-        }
-      }
+    chPct[ct]=HZ.map(([,off],i)=>{
+      const p=pct(cur, mk.data[ct]?.[dates[off]]);
+      if(p!==null && Math.abs(p)>maxP[i]) maxP[i]=Math.abs(p); return p;
     });
-    aggCv.parentElement.style.height = aggH + 'px';
-    aggCv.style.height = aggH + 'px';
-    chart.resize();
-    S.charts['__agg__'] = chart;
-  }, 0);
-}
-
-// ════════════════════════════════════════════════════ PRE vs FINAL ══
-
-function renderPvf(mc) {
-  // Not live: current upload was Pre OI, or no snapshot exists yet
-  if (!S.pvfLive) {
-    const hasPvfData = S.pvf !== null;
-    // Which message to show depends on why it's not live
-    const icon = '◈';
-    const headline = !hasPvfData
-      ? 'NO PRE vs FINAL DATA YET'
-      : 'CURRENT DATA IS PRE OI';
-    const sub = !hasPvfData
-      ? `First upload a <b style="color:var(--accent2)">Pre OI</b> file (standard publish),
-         then upload a <b style="color:var(--warn)">Final OI</b> file from the admin panel.
-         The comparison will appear here once a Final OI file is active.`
-      : `This view is only active when the latest published file is <b style="color:var(--warn)">Final OI</b>.
-         The current dataset was uploaded as <b style="color:var(--accent2)">Pre OI</b>.
-         Upload the corresponding <b style="color:var(--warn)">Final OI</b> file from the admin panel to enable this view.<br><br>
-        <span style="opacity:.75;font-size:12px">
-          Usually available after <b>9:00 PM IST</b> (~<b>11:30 AM ET</b>) when Final OI is published.
-        </span>`;
-    mc.innerHTML = `
-      <div class="empty">
-        <div class="empty-icon" style="opacity:.2">${icon}</div>
-        <div>${headline}</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:8px;max-width:460px;text-align:center;line-height:1.8">${sub}</div>
-      </div>`;
-    return;
-  }
-
-  const { pre, final, market_order } = S.pvf;
-
-  // Filter to only PvF-relevant markets and those present in both snapshots
-  const pvfMarkets = market_order.filter(m => isPvfMarket(m));
-
-  if (!pvfMarkets.length) {
-    mc.innerHTML = `<div class="empty"><div class="empty-icon">◈</div><div>NO SR3 / FF / TREASURY DATA IN SNAPSHOT</div></div>`;
-    return;
-  }
-
-  const snapshotTarget = document.createElement('div');
-  snapshotTarget.className = 'pvf-snapshot-target';
-  snapshotTarget.id = 'pvfSnapshotTarget';
-
-  // Meta bar
-  const metaBar = document.createElement('div');
-  metaBar.className = 'pvf-meta-bar';
-  metaBar.innerHTML = `
-    <span class="pvf-meta-tag pre">PRE</span>
-    <span>Date: <b>${pre.snapshot_date || '—'}</b></span>
-    <span style="color:var(--border2)">→</span>
-    <span class="pvf-meta-tag final">FINAL</span>
-    <span>Date: <b>${final.snapshot_date || '—'}</b></span>
-    <span style="color:var(--border2)">|</span>
-    <span style="color:var(--dim)">Diff = Final OI − Pre OI</span>
-    <span class="pvf-meta-spacer"></span>
-    <button class="pvf-snapshot-btn" type="button" onclick="downloadPvfSnapshot(this)" data-no-snapshot="true">SNAPSHOT</button>`;
-  snapshotTarget.appendChild(metaBar);
-
-  // Side-by-side market columns
-  const page = document.createElement('div');
-  page.className = 'pvf-page';
-
-  pvfMarkets.forEach(mktName => {
-    const preOI   = pre.markets?.[mktName]   || {};
-    const finalOI = final.markets?.[mktName] || {};
-
-    // Collect contracts in original sheet order.
-    // Primary source: current dashboard data (preserves exact row order from the workbook).
-    // Fallback: pre snapshot keys, then final snapshot keys — for any contract only in a snapshot.
-    const liveContracts = S.markets[mktName]?.contracts ?? [];
-    const seen = new Set(liveContracts);
-    const extra = [
-      ...Object.keys(preOI),
-      ...Object.keys(finalOI),
-    ].filter(c => !seen.has(c));
-    const uncappedContracts = [...liveContracts, ...extra];
-    const cap = marketContractCap(mktName);
-    const allContracts = cap !== null ? uncappedContracts.slice(0, cap) : uncappedContracts;
-
-    if (!allContracts.length) return;
-
-    // Determine packs
-    const packs = packsForMarket(mktName, allContracts);
-
-    const col = document.createElement('div');
-    col.className = 'pvf-mkt-col';
-
-    // Market header
-    const mktHead = document.createElement('div');
-    mktHead.className = 'pvf-mkt-head';
-    mktHead.innerHTML = `
-      <span class="pvf-mkt-name">${escapeHTML(mktName)}</span>
-      <span class="pvf-mkt-badge">${allContracts.length} contracts</span>`;
-    col.appendChild(mktHead);
-
-    // Column sub-headers
-    const colHdr = document.createElement('div');
-    colHdr.className = 'pvf-col-hdr';
-    colHdr.innerHTML = `
-      <div class="pvf-ch">CONTRACT</div>
-      <div class="pvf-ch" style="text-align:right">FINAL OI</div>
-      <div class="pvf-ch" style="text-align:right">DIFF</div>`;
-    col.appendChild(colHdr);
-
-    // Pack groups
-    let grandFinal = 0, grandDiff = 0;
-
-    packs.forEach(pack => {
-      const pContracts = pack.contracts || allContracts.slice(pack.start, pack.end + 1);
-      if (!pContracts.length) return;
-
-      // Pack sums
-      let packFinalSum = 0, packPreSum = 0;
-      pContracts.forEach((c, i) => {
-        packFinalSum += Number(finalOI[c]) || 0;
-        packPreSum   += Number(preOI[c])   || 0;
-      });
-      const packDiff = packFinalSum - packPreSum;
-      grandFinal += packFinalSum;
-      grandDiff  += packDiff;
-
-      const sc = pack.sideColor, st = pack.sideText;
-      const packHdr = document.createElement('div');
-      packHdr.className = 'pvf-pack-hdr';
-      packHdr.style.background = sc + '18';
-      packHdr.innerHTML = `
-        <div class="pvf-pack-name-cell" style="border-left:3px solid ${sc}">
-          <span class="pvf-pack-lbl" style="color:${st === '#101820' ? sc : st}">${pack.name}</span>
-        </div>
-        <div class="pvf-pack-sum">${fmtOI(packFinalSum)}</div>
-        <div class="pvf-pack-diff" style="${diffStyle(packDiff)}">${diffLabel(packDiff)}</div>`;
-      col.appendChild(packHdr);
-
-      pContracts.forEach((c, i) => {
-        const fVal = finalOI[c] != null ? Number(finalOI[c]) : null;
-        const pVal = preOI[c]   != null ? Number(preOI[c])   : null;
-        const diff = (fVal != null && pVal != null) ? fVal - pVal : null;
-
-        const row = document.createElement('div');
-        row.className = 'pvf-row' + (i === pContracts.length - 1 ? ' pvf-pack-end' : '');
-        row.innerHTML = `
-          <div class="pvf-c-name" style="border-left:3px solid ${sc}">${escapeHTML(c)}</div>
-          <div class="pvf-c-oi">${fVal != null ? fmtOI(fVal) : '<span style="color:#5a7a9a">—</span>'}</div>
-          <div class="pvf-c-diff" style="${diffStyle(diff)}">${diffLabel(diff)}</div>`;
-        col.appendChild(row);
-      });
-    });
-
-    // Grand total
-    const grand = document.createElement('div');
-    grand.className = 'pvf-grand';
-    grand.innerHTML = `
-      <div class="pvf-grand-lbl">TOTAL</div>
-      <div class="pvf-grand-oi">${fmtOI(grandFinal)}</div>
-      <div class="pvf-grand-diff" style="${diffStyle(grandDiff)}">${diffLabel(grandDiff)}</div>`;
-    col.appendChild(grand);
-
-    page.appendChild(col);
   });
-
-  snapshotTarget.appendChild(page);
-  mc.appendChild(snapshotTarget);
+  // header — two segregated blocks: Δ (#) and Δ (%)
+  let h='<div class="card"><div class="card-hd"><div class="t">'+esc(MARKET_LABELS[S.active]||S.active)+
+        '<small>Open-Interest change · vs prior sessions</small></div>'+
+        '<div class="r">colour = Δ OI · green rising · blue falling</div></div><div class="tbl-wrap"><table class="grid"><thead>';
+  h+='<tr><th class="lbl" rowspan="2">Contract</th><th class="lbl" rowspan="2">Trend</th>'+
+     '<th rowspan="2">Latest OI</th>'+
+     '<th class="grp sepL" colspan="'+HZ.length+'">Δ Open Interest&nbsp;(#)</th>'+
+     '<th class="grp sepL" colspan="'+HZ.length+'">Δ Open Interest&nbsp;(%)</th></tr><tr>';
+  HZ.forEach(([lab],i)=>h+='<th'+(i===0?' class="sepL"':'')+'>'+lab+'</th>');
+  HZ.forEach(([lab],i)=>h+='<th'+(i===0?' class="sepL"':'')+'>'+lab+'</th>');
+  h+='</tr></thead><tbody>';
+  contracts.forEach((ct,ri)=>{
+    const latest=mk.data[ct]?.[latestD];
+    const sepClass=(STIR.has(S.active) && (ri+1)%4===0 && ri<contracts.length-1)?'pack-sep':'';
+    h+='<tr class="'+sepClass+'">';
+    h+='<td class="lbl">'+esc(ct)+'</td>';
+    h+='<td class="num">'+sparkline(ct,mk,dates)+'</td>';
+    h+='<td class="latest num">'+fmtOI(latest)+'</td>';
+    // Δ (#) block
+    chNum[ct].forEach((d,i)=>{
+      const t=(d===null||maxN[i]===0)?null:d/maxN[i];
+      const cls=d<0?'down':'';
+      const tip=esc(ct+' · Δ'+HZ[i][0]+' (#)\n'+(d===null?'—':fmtSigned(d)+' contracts vs '+(dates[HZ[i][1]]||'—')));
+      h+='<td class="num '+cls+(i===0?' sepL':'')+'" style="background:'+heatColor(t)+'" data-tip="'+tip+'">'+(d===null?'·':fmtSigned(d))+'</td>';
+    });
+    // Δ (%) block
+    chPct[ct].forEach((p,i)=>{
+      const t=(p===null||maxP[i]===0)?null:p/maxP[i];
+      const cls=p<0?'down':'';
+      const tip=esc(ct+' · Δ'+HZ[i][0]+' (%)\n'+(p===null?'—':(p>0?'+':'')+p.toFixed(2)+'% vs '+(dates[HZ[i][1]]||'—')));
+      h+='<td class="num '+cls+(i===0?' sepL':'')+'" style="background:'+heatColor(t)+'" data-tip="'+tip+'">'+(p===null?'·':(p>0?'+':'')+p.toFixed(1)+'%')+'</td>';
+    });
+    h+='</tr>';
+  });
+  // TOTAL row — summed OI change per horizon (heat-map excluded)
+  let sumNow=0; contracts.forEach(ct=>{const a=mk.data[ct]?.[latestD]; if(a!=null) sumNow+=+a;});
+  const tot=HZ.map(([,off])=>{let sn=0,sp=0,any=false;
+    contracts.forEach(ct=>{const a=mk.data[ct]?.[latestD],b=mk.data[ct]?.[dates[off]];
+      if(a!=null&&b!=null){sn+=+a;sp+=+b;any=true;}});
+    return any?{d:sn-sp,p:sp!==0?(sn-sp)/Math.abs(sp)*100:null}:{d:null,p:null};});
+  h+='<tr class="total"><td class="lbl">TOTAL</td><td></td><td class="num">'+fmtOI(sumNow)+'</td>';
+  tot.forEach((x,i)=>h+='<td class="num '+(x.d<0?'down':'')+(i===0?' sepL':'')+'">'+(x.d===null?'·':fmtSigned(x.d))+'</td>');
+  tot.forEach((x,i)=>h+='<td class="num '+(x.p<0?'down':'')+(i===0?' sepL':'')+'">'+(x.p===null?'·':(x.p>0?'+':'')+x.p.toFixed(1)+'%')+'</td>');
+  h+='</tr>';
+  h+='</tbody></table></div>';
+  h+='<div class="legend"><span class="lg"><b>Heat-map</b></span>'+
+     '<span class="lg">OI falling <span class="ramp"></span> OI rising</span>'+
+     '<span class="lg" style="color:var(--muted)">each column scaled on its own · white ≈ unchanged</span>'+
+     '<span class="lg" style="color:var(--muted)">horizons = 1D / 3D / 1W / 2W / 3W / 4W / 2M / 3M sessions · negatives in <span class="down">red</span></span></div>';
+  h+='</div>';
+  c.innerHTML=h;
+  wireTips();
 }
 
-async function downloadPvfSnapshot(btn) {
-  const oldText = btn?.textContent;
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'EXPORTING...';
+function sparkline(ct,mk,allDates){
+  // chronological OI series (oldest -> newest), last ~30 points
+  const ds=[...allDates].reverse().slice(-30);
+  const pts=ds.map(d=>mk.data[ct]?.[d]).filter(v=>v!==null&&v!==undefined).map(Number);
+  if(pts.length<2) return '';
+  const w=88,hgt=22,pad=2;
+  const mn=Math.min(...pts),mx=Math.max(...pts),rg=(mx-mn)||1;
+  const step=(w-2*pad)/(pts.length-1);
+  const path=pts.map((v,i)=>(pad+i*step).toFixed(1)+','+(pad+(hgt-2*pad)*(1-(v-mn)/rg)).toFixed(1)).join(' ');
+  const up=pts[pts.length-1]>=pts[0];
+  const col=up?'#1f9d6b':'#cf3f38';
+  return '<svg class="spark" width="'+w+'" height="'+hgt+'" viewBox="0 0 '+w+' '+hgt+'">'+
+    '<polyline fill="none" stroke="'+col+'" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" points="'+path+'"/>'+
+    '<circle cx="'+(pad+(pts.length-1)*step).toFixed(1)+'" cy="'+(pad+(hgt-2*pad)*(1-(pts[pts.length-1]-mn)/rg)).toFixed(1)+'" r="1.9" fill="'+col+'"/></svg>';
+}
+
+/* ============================ SERIES ============================ */
+const SERIES_PALETTE=['#1b2c47','#2f6fb0','#1f9d6b','#c98a1f','#8e5bd0','#cf3f38',
+  '#0f8a8a','#6b7a90','#b0417a','#3d7bd1','#6a9a2f','#d06a1f'];
+function fmtDateShort(s){const d=parseD(s);return d?d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}):s;}
+function fmtDateLong(s){const d=parseD(s);return d?d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}):s;}
+
+// vertical crosshair on hover
+const crosshairPlugin={id:'crosshair',afterDatasetsDraw(chart){
+  const a=chart.tooltip&&chart.tooltip._active;
+  if(a&&a.length){
+    const x=a[0].element.x,{top,bottom}=chart.chartArea,cx=chart.ctx;
+    cx.save();cx.beginPath();cx.moveTo(x,top);cx.lineTo(x,bottom);
+    cx.lineWidth=1;cx.setLineDash([4,4]);cx.strokeStyle='rgba(27,44,71,.30)';cx.stroke();cx.restore();
   }
+}};
 
-  try {
-    if (document.fonts?.ready) await document.fonts.ready;
-    const canvas = drawPvfSnapshotCanvas(3);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) throw new Error('Canvas PNG export returned empty data.');
-
-    const link = document.createElement('a');
-    const preDate = safeFileDate(S.pvf?.pre?.snapshot_date || 'pre');
-    const finalDate = safeFileDate(S.pvf?.final?.snapshot_date || 'final');
-    const url = URL.createObjectURL(blob);
-    link.download = `pre-vs-final_${preDate}_to_${finalDate}.png`;
-    link.href = url;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-    const copied = await copyPvfSnapshotToClipboard(blob);
-    if (btn) btn.textContent = copied ? 'SAVED + COPIED' : 'SAVED';
-  } catch (err) {
-    alert('Snapshot export failed. Please refresh the page and try once more.');
-    console.error(err);
-  } finally {
-    if (btn) {
-      setTimeout(() => {
-        btn.disabled = false;
-        btn.textContent = oldText || 'SNAPSHOT';
-      }, 900);
+function seriesDatasets(mk,contracts,dates,N,mode){
+  return contracts.slice(0,N).map((ct,i)=>{
+    const col=SERIES_PALETTE[i%SERIES_PALETTE.length];
+    const raw=dates.map(d=>{const v=mk.data[ct]?.[d];return v==null?null:Number(v);});
+    let data=raw;
+    if(mode==='pct'){ let base=null; for(const v of raw){ if(v!=null){base=v;break;} }
+      data=raw.map(v=>(v==null||base==null||base===0)?null:(v-base)/base*100); }
+    return { label:ct, data, borderColor:col, backgroundColor:col,
+      borderWidth:2, tension:.35, cubicInterpolationMode:'monotone', spanGaps:true,
+      pointRadius:(ctx)=>{let li=-1;const a=ctx.dataset.data;for(let k=a.length-1;k>=0;k--){if(a[k]!=null){li=k;break;}}return ctx.dataIndex===li?3.2:0;},
+      pointBackgroundColor:col, pointBorderColor:'#fff', pointBorderWidth:1.6,
+      pointHoverRadius:5, pointHoverBorderColor:'#fff', pointHoverBorderWidth:2 };
+  });
+}
+function renderSeries(c){
+  const mk=S.markets[S.active]; if(!mk){c.innerHTML='';return;}
+  if(!S.seriesMode) S.seriesMode='pct';
+  const mode=S.seriesMode, isPct=(mode==='pct');
+  const contracts=mk.contracts||[];
+  const dates=[...(mk.dates||[])].reverse();     // chronological (oldest→newest)
+  const labels=dates.slice();
+  const N=Math.min(contracts.length,12);
+  const datasets=seriesDatasets(mk,contracts,dates,N,mode);
+  c.innerHTML='<div class="card"><div class="card-hd"><div class="t">'+esc(MARKET_LABELS[S.active]||S.active)+
+    '<small>Open-Interest '+(isPct?'relative change':'levels')+'</small></div><div class="r">front '+N+' contracts · '+labels.length+' sessions</div></div>'+
+    '<div class="series-tools"><div class="seg small" id="ser-mode">'+
+      '<button data-m="pct"'+(isPct?' class="active"':'')+'>% Change</button>'+
+      '<button data-m="level"'+(!isPct?' class="active"':'')+'>Levels</button></div>'+
+      '<label>'+(isPct?'Each contract indexed to the start of the window (0%) — shows how positioning has actually moved.':'Absolute open interest, in contracts.')+' Hover for a cross-section · click the legend to show / hide a line.</label>'+
+    '</div>'+
+    '<div class="chart-box"><canvas id="ser"></canvas></div></div>';
+  const ctx=$('#ser').getContext('2d');
+  const chart=new Chart(ctx,{type:'line',data:{labels,datasets},plugins:[crosshairPlugin],options:{
+    responsive:true,maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    layout:{padding:{top:8,right:16,bottom:2,left:2}},
+    elements:{line:{borderJoinStyle:'round',capBezierPoints:true}},
+    plugins:{
+      legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',boxWidth:8,boxHeight:8,
+        padding:15,font:{size:11},color:'#43536e',
+        generateLabels(ch){const items=Chart.defaults.plugins.legend.labels.generateLabels(ch);
+          items.forEach(it=>{const ds=ch.data.datasets[it.datasetIndex];const arr=ds.data;
+            let last=null;for(let k=arr.length-1;k>=0;k--){if(arr[k]!=null){last=arr[k];break;}}
+            it.text=ds.label+'  ·  '+(isPct?(last==null?'·':(last>0?'+':'')+last.toFixed(1)+'%'):fmtOI(last));});
+          return items;}}},
+      tooltip:{enabled:true,backgroundColor:'rgba(23,35,59,.97)',titleColor:'#fff',bodyColor:'#dbe6f5',
+        borderColor:'#31456a',borderWidth:1,padding:{top:10,bottom:10,left:12,right:12},
+        cornerRadius:8,titleFont:{size:12,weight:'700'},bodyFont:{size:11.5},boxPadding:5,
+        usePointStyle:true,itemSort:(a,b)=>b.parsed.y-a.parsed.y,
+        callbacks:{title:(items)=>items.length?fmtDateLong(items[0].label):'',
+          label:(x)=>'  '+x.dataset.label+'   '+(isPct?((x.parsed.y>0?'+':'')+x.parsed.y.toFixed(2)+'%'):fmtOI(x.parsed.y))}}
+    },
+    scales:{
+      x:{grid:{display:false},border:{color:'#c7cfdb'},
+        ticks:{color:'#7b8aa1',font:{size:10.5},maxTicksLimit:9,autoSkip:true,maxRotation:0,
+          callback(v){return fmtDateShort(this.getLabelForValue(v));}}},
+      y:{grace:isPct?'6%':'8%',
+        grid:{color:(cx)=>(isPct&&cx.tick&&cx.tick.value===0)?'#9aa8bd':'#eaedf3',
+              lineWidth:(cx)=>(isPct&&cx.tick&&cx.tick.value===0)?1.4:1},
+        border:{display:false},
+        title:{display:true,text:isPct?'Change since start of window (%)':'Open Interest (contracts)',color:'#7b8aa1',font:{size:10.5,weight:'700'}},
+        ticks:{color:'#7b8aa1',font:{size:10.5},padding:6,callback:v=>isPct?((v>0?'+':'')+v+'%'):fmtOI(v)}}
     }
-  }
+  }});
+  S.charts.push(chart);
+  const mb=document.querySelector('#ser-mode');
+  if(mb) mb.querySelectorAll('button').forEach(b=>b.onclick=()=>{S.seriesMode=b.dataset.m;render();});
 }
 
-async function copyPvfSnapshotToClipboard(blob) {
-  try {
-    if (!navigator.clipboard || typeof ClipboardItem === 'undefined') return false;
-    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-    return true;
-  } catch (err) {
-    console.warn('Clipboard image copy failed; PNG download still completed.', err);
-    return false;
-  }
-}
-
-function drawPvfSnapshotCanvas(scale = 3) {
-  if (!S.pvfLive || !S.pvf) throw new Error('Pre vs Final data is not active.');
-
-  const { pre, final, market_order } = S.pvf;
-  const markets = market_order.filter(m => isPvfMarket(m)).map(buildPvfSnapshotMarket).filter(Boolean);
-  if (!markets.length) throw new Error('No Pre vs Final markets available.');
-
-  const L = {
-    name:275, oi:170, diff:170, gap:22,
-    metaH:60, mktHeadH:52, colHeadH:42, packH:54, rowH:46, grandH:52, packGap:18, grandGap:18,
-  };
-  L.colW = L.name + L.oi + L.diff;
-  const width = markets.length * L.colW + (markets.length - 1) * L.gap;
-  const colHeights = markets.map(m => pvfSnapshotColumnHeight(m, L));
-  const height = L.metaH + Math.max(...colHeights);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width * scale;
-  canvas.height = height * scale;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(scale, scale);
-  ctx.fillStyle = '#10161f';
-  ctx.fillRect(0, 0, width, height);
-
-  drawPvfSnapshotMeta(ctx, pre.snapshot_date, final.snapshot_date, width, L.metaH);
-
-  markets.forEach((market, i) => {
-    drawPvfSnapshotMarket(ctx, market, i * (L.colW + L.gap), L.metaH, L, colHeights[i]);
-  });
-
-  return canvas;
-}
-
-function buildPvfSnapshotMarket(mktName) {
-  const { pre, final } = S.pvf;
-  const preOI   = pre.markets?.[mktName]   || {};
-  const finalOI = final.markets?.[mktName] || {};
-  const liveContracts = S.markets[mktName]?.contracts ?? [];
-  const seen = new Set(liveContracts);
-  const extra = [...Object.keys(preOI), ...Object.keys(finalOI)].filter(c => !seen.has(c));
-  const uncappedContracts = [...liveContracts, ...extra];
-  const cap = marketContractCap(mktName);
-  const contracts = cap !== null ? uncappedContracts.slice(0, cap) : uncappedContracts;
-  if (!contracts.length) return null;
-
-  const packs = packsForMarket(mktName, contracts).map(pack => ({
-    ...pack,
-    contracts: pack.contracts || contracts.slice(pack.start, pack.end + 1),
-  })).filter(pack => pack.contracts.length);
-
-  return { name:mktName, contracts, packs, preOI, finalOI };
-}
-
-function pvfSnapshotColumnHeight(market, L) {
-  let h = L.mktHeadH + L.colHeadH;
-  market.packs.forEach((pack, i) => {
-    h += (i === 0 ? 0 : L.packGap) + L.packH + pack.contracts.length * L.rowH;
-  });
-  return h + L.grandGap + L.grandH;
-}
-
-function drawPvfSnapshotMeta(ctx, preDate, finalDate, width, h) {
-  ctx.fillStyle = '#10161f';
-  ctx.fillRect(0, 0, width, h);
-  ctx.textBaseline = 'middle';
-  let x = 0;
-  const y = h / 2;
-  x = drawSnapshotTag(ctx, 'PRE', x, y, '#50e890', 'rgba(80,232,144,.18)') + 10;
-  x = drawSnapshotText(ctx, `Date: ${preDate || '-'}`, x, y, '#dce8f8', '500 17px') + 28;
-  x = drawSnapshotText(ctx, '->', x, y, '#3a5070', '600 18px') + 28;
-  x = drawSnapshotTag(ctx, 'FINAL', x, y, '#ffd44d', 'rgba(255,212,77,.18)') + 10;
-  x = drawSnapshotText(ctx, `Date: ${finalDate || '-'}`, x, y, '#dce8f8', '500 17px') + 28;
-  x = drawSnapshotText(ctx, '|', x, y, '#3a5070', '600 17px') + 28;
-  drawSnapshotText(ctx, 'Diff = Final OI - Pre OI', x, y, '#7a95b8', '500 17px');
-}
-
-function drawPvfSnapshotMarket(ctx, market, x, y, L, height) {
-  const c = {
-    bg:'#10161f', panel:'#181f2d', panel2:'#1c2438', panel3:'#202840',
-    border:'#2e3f58', borderSoft:'rgba(46,63,88,.55)', accent:'#4db8ff',
-    text:'#ffffff', text2:'#dce8f8', dim:'#7a95b8', dim2:'#9ab0cc',
-  };
-  ctx.strokeStyle = c.border;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + .5, y + .5, L.colW - 1, height - 1);
-
-  let cy = y;
-  ctx.fillStyle = c.panel3;
-  ctx.fillRect(x, cy, L.colW, L.mktHeadH);
-  drawCanvasText(ctx, market.name, x + 10, cy + L.mktHeadH / 2, {
-    font:'700 18px "IBM Plex Mono", Consolas, monospace', color:c.accent, maxWidth:330,
-  });
-  drawCanvasText(ctx, `${market.contracts.length} contracts`, x + L.colW - 10, cy + L.mktHeadH / 2, {
-    font:'500 14px "IBM Plex Mono", Consolas, monospace', color:c.dim, align:'right',
-  });
-  strokeLine(ctx, x, cy + L.mktHeadH, x + L.colW, cy + L.mktHeadH, c.border);
-  cy += L.mktHeadH;
-
-  ctx.fillStyle = c.panel2;
-  ctx.fillRect(x, cy, L.colW, L.colHeadH);
-  drawCellText(ctx, 'CONTRACT', x, cy, L.name, L.colHeadH, c.dim2, 'left', '600 14px');
-  drawCellText(ctx, 'FINAL OI', x + L.name, cy, L.oi, L.colHeadH, c.dim2, 'right', '600 14px');
-  drawCellText(ctx, 'DIFF', x + L.name + L.oi, cy, L.diff, L.colHeadH, c.dim2, 'right', '600 14px');
-  drawVerticals(ctx, x, cy, L, L.colHeadH, c.borderSoft);
-  strokeLine(ctx, x, cy + L.colHeadH, x + L.colW, cy + L.colHeadH, c.border);
-  cy += L.colHeadH;
-
-  let grandFinal = 0, grandDiff = 0;
-  market.packs.forEach((pack, packIndex) => {
-    if (packIndex > 0) cy += L.packGap;
-    const sc = pack.sideColor || c.accent;
-    let packFinal = 0, packPre = 0;
-    pack.contracts.forEach(contract => {
-      packFinal += Number(market.finalOI[contract]) || 0;
-      packPre += Number(market.preOI[contract]) || 0;
-    });
-    const packDiff = packFinal - packPre;
-    grandFinal += packFinal;
-    grandDiff += packDiff;
-
-    ctx.fillStyle = hexToRgba(sc, .10);
-    ctx.fillRect(x, cy, L.colW, L.packH);
-    ctx.fillStyle = sc;
-    ctx.fillRect(x, cy, 3, L.packH);
-    drawCellText(ctx, pack.name, x, cy, L.name, L.packH, pack.sideText === '#101820' ? sc : pack.sideText, 'left', '700 18px');
-    drawCellText(ctx, fmtOI(packFinal), x + L.name, cy, L.oi, L.packH, c.text, 'right', '600 18px');
-    drawCellText(ctx, snapshotDiffText(packDiff), x + L.name + L.oi, cy, L.diff, L.packH, snapshotDiffColor(packDiff), 'right', '600 18px');
-    drawVerticals(ctx, x, cy, L, L.packH, c.border);
-    strokeLine(ctx, x, cy + L.packH, x + L.colW, cy + L.packH, c.borderSoft);
-    cy += L.packH;
-
-    pack.contracts.forEach(contract => {
-      const fVal = market.finalOI[contract] != null ? Number(market.finalOI[contract]) : null;
-      const pVal = market.preOI[contract] != null ? Number(market.preOI[contract]) : null;
-      const diff = (fVal != null && pVal != null) ? fVal - pVal : null;
-      ctx.fillStyle = sc;
-      ctx.fillRect(x, cy, 3, L.rowH);
-      drawCellText(ctx, contract, x, cy, L.name, L.rowH, c.text2, 'left', '500 18px');
-      drawCellText(ctx, fVal != null ? fmtOI(fVal) : '-', x + L.name, cy, L.oi, L.rowH, fVal != null ? c.text : '#5a7a9a', 'right', '500 18px');
-      drawCellText(ctx, snapshotDiffText(diff), x + L.name + L.oi, cy, L.diff, L.rowH, snapshotDiffColor(diff), 'right', '600 18px');
-      drawVerticals(ctx, x, cy, L, L.rowH, c.borderSoft);
-      strokeLine(ctx, x, cy + L.rowH, x + L.colW, cy + L.rowH, 'rgba(46,63,88,.40)');
-      cy += L.rowH;
-    });
-  });
-
-  cy += L.grandGap;
-  ctx.fillStyle = 'rgba(77,184,255,.05)';
-  ctx.fillRect(x, cy, L.colW, L.grandH);
-  strokeLine(ctx, x, cy, x + L.colW, cy, 'rgba(77,184,255,.30)');
-  drawCellText(ctx, 'TOTAL', x, cy, L.name, L.grandH, c.accent, 'left', '600 17px');
-  drawCellText(ctx, fmtOI(grandFinal), x + L.name, cy, L.oi, L.grandH, c.accent, 'right', '700 19px');
-  drawCellText(ctx, snapshotDiffText(grandDiff), x + L.name + L.oi, cy, L.diff, L.grandH, snapshotDiffColor(grandDiff), 'right', '700 19px');
-  drawVerticals(ctx, x, cy, L, L.grandH, 'rgba(77,184,255,.15)');
-}
-
-function drawSnapshotTag(ctx, text, x, y, color, bg) {
-  ctx.font = '600 16px "IBM Plex Mono", Consolas, monospace';
-  const w = Math.ceil(ctx.measureText(text).width) + 24;
-  ctx.fillStyle = bg;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1;
-  ctx.fillRect(x, y - 15, w, 30);
-  ctx.strokeRect(x + .5, y - 14.5, w - 1, 29);
-  ctx.fillStyle = color;
-  ctx.fillText(text, x + 12, y + .5);
-  return x + w;
-}
-
-function drawSnapshotText(ctx, text, x, y, color, fontSize) {
-  ctx.font = `${fontSize} "IBM Plex Mono", Consolas, monospace`;
-  ctx.fillStyle = color;
-  ctx.fillText(text, x, y + .5);
-  return x + ctx.measureText(text).width;
-}
-
-function drawCanvasText(ctx, text, x, y, opts = {}) {
-  ctx.save();
-  ctx.font = opts.font || '500 11px "IBM Plex Mono", Consolas, monospace';
-  ctx.fillStyle = opts.color || '#ffffff';
-  ctx.textAlign = opts.align || 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(ellipsizeCanvasText(ctx, text, opts.maxWidth || Infinity), x, y);
-  ctx.restore();
-}
-
-function drawCellText(ctx, text, x, y, w, h, color, align = 'left', fontSize = '500 11px') {
-  const pad = 10;
-  drawCanvasText(ctx, String(text), align === 'right' ? x + w - pad : x + pad, y + h / 2, {
-    color, align, maxWidth:w - pad * 2,
-    font:`${fontSize} "IBM Plex Mono", Consolas, monospace`,
-  });
-}
-
-function drawVerticals(ctx, x, y, L, h, color) {
-  strokeLine(ctx, x + L.name, y, x + L.name, y + h, color);
-  strokeLine(ctx, x + L.name + L.oi, y, x + L.name + L.oi, y + h, color);
-}
-
-function strokeLine(ctx, x1, y1, x2, y2, color) {
-  ctx.strokeStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(x1 + .5, y1 + .5);
-  ctx.lineTo(x2 + .5, y2 + .5);
-  ctx.stroke();
-}
-
-function ellipsizeCanvasText(ctx, text, maxWidth) {
-  text = String(text);
-  if (!Number.isFinite(maxWidth) || ctx.measureText(text).width <= maxWidth) return text;
-  while (text.length > 1 && ctx.measureText(text + '...').width > maxWidth) text = text.slice(0, -1);
-  return text + '...';
-}
-
-function snapshotDiffText(val) {
-  if (val == null || !Number.isFinite(val)) return '-';
-  if (val === 0) return '0';
-  return (val > 0 ? '+' : '') + fmt(val);
-}
-
-function snapshotDiffColor(val) {
-  if (val == null || !Number.isFinite(val) || val === 0) return '#7a95b8';
-  return val > 0 ? '#50e890' : '#ff6b6b';
-}
-
-function hexToRgba(hex, alpha) {
-  const v = String(hex || '#4db8ff').replace('#', '');
-  const r = parseInt(v.slice(0, 2), 16);
-  const g = parseInt(v.slice(2, 4), 16);
-  const b = parseInt(v.slice(4, 6), 16);
-  return `rgba(${r || 0},${g || 0},${b || 0},${alpha})`;
-}
-
-function safeFileDate(v) {
-  return String(v || '')
-    .trim()
-    .replace(/[^0-9A-Za-z]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'date';
-}
-
-/** CSS colour string for a diff value */
-function diffStyle(val) {
-  if (val == null || !Number.isFinite(val) || val === 0) return 'color:#7a95b8';
-  const abs    = Math.abs(val);
-  const inten  = Math.min(abs / 50000, 1);   // saturates at ±50K
-  if (val > 0) return `color:#50e890;text-shadow:0 0 ${4 + inten * 8}px rgba(80,232,144,${0.3 + inten * 0.4})`;
-  return             `color:#ff6b6b;text-shadow:0 0 ${4 + inten * 8}px rgba(255,107,107,${0.3 + inten * 0.4})`;
-}
-
-/** Formatted diff label with sign */
-function diffLabel(val) {
-  if (val == null || !Number.isFinite(val)) return '<span style="color:#5a7a9a">—</span>';
-  if (val === 0) return '0';
-  return (val > 0 ? '+' : '') + fmt(val);
-}
-
-// ── TOOLTIP ──
-function showTip(e, contract, cData, dates) {
-  const t = document.getElementById('tip');
-  t.innerHTML = `
-    <div class="spark-tip-title">${contract}</div>
-    <canvas class="spark-tip-canvas" width="240" height="92"></canvas>`;
-  t.style.display = 'block';
-  drawSparkline(t.querySelector('canvas'), dates, cData);
-  moveTip(e);
-}
-function moveTip(e) {
-  const t = document.getElementById('tip');
-  const x = Math.min(e.clientX + 16, window.innerWidth  - t.offsetWidth  - 12);
-  const y = Math.min(e.clientY + 12, window.innerHeight - t.offsetHeight - 12);
-  t.style.left = Math.max(12, x) + 'px';
-  t.style.top  = Math.max(12, y) + 'px';
-}
-function hideTip() { document.getElementById('tip').style.display = 'none'; }
-
-function drawSparkline(canvas, dates, cData) {
-  const ctx = canvas.getContext('2d');
-  const w   = canvas.width, h = canvas.height;
-  const pad = { left:8, right:8, top:8, bottom:16 };
-  const points = dates
-    .map(d => ({ d, v: Number(cData[d]) }))
-    .filter(p => Number.isFinite(p.v))
-    .reverse();
-
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#10161f';
-  ctx.fillRect(0, 0, w, h);
-
-  ctx.strokeStyle = 'rgba(122,149,184,.18)';
-  ctx.lineWidth   = 1;
-  for (let i = 0; i < 3; i++) {
-    const y = pad.top + i * ((h - pad.top - pad.bottom) / 2);
-    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
-  }
-
-  if (points.length < 2) {
-    ctx.fillStyle = '#7a95b8';
-    ctx.font = '11px IBM Plex Mono, monospace';
-    ctx.fillText('NO SERIES', 86, 50);
+/* ============================ PRE vs FINAL ============================ */
+async function renderPvf(c){
+  c.innerHTML='<div class="card"><div class="loading">Loading pre-vs-final snapshot…</div></div>';
+  const p=await ensurePvf();
+  if(!p||p.error){
+    c.innerHTML='<div class="card"><div class="card-hd"><div class="t">Pre vs Final</div></div>'+
+      '<div class="empty">No pre-vs-final snapshot yet. It is captured automatically the next time a <b>Final&nbsp;OI</b> workbook is published — the prior figures become “Pre”, the new ones “Final”.</div></div>';
     return;
   }
-
-  const vals = points.map(p => p.v);
-  let min = Math.min(...vals), max = Math.max(...vals);
-  if (min === max) { min -= 1; max += 1; }
-  const xFor = i => pad.left + i * ((w - pad.left - pad.right) / (points.length - 1));
-  const yFor = v => pad.top + (max - v) * ((h - pad.top - pad.bottom) / (max - min));
-
-  const grad = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
-  grad.addColorStop(0, 'rgba(77,184,255,.25)');
-  grad.addColorStop(1, 'rgba(77,184,255,0)');
-
-  ctx.beginPath();
-  points.forEach((p, i) => {
-    const x = xFor(i), y = yFor(p.v);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  const order=p.market_order||[];
+  const pre=p.pre?.markets||{}, fin=p.final?.markets||{};
+  let h='<div class="card"><div class="card-hd"><div class="t">Pre vs Final Open Interest'+
+        '<small>rates markets · settlement revision</small></div>'+
+        '<div class="pvf-actions"><button class="btn btn-ghost" id="pvf-copy">⧉ Copy</button>'+
+        '<button class="btn btn-ghost" id="pvf-png">⭳ PNG</button></div></div>';
+  h+='<div class="tbl-wrap"><table class="grid" id="pvf-tbl"><thead><tr>'+
+     '<th class="lbl">Contract</th><th>Pre OI</th><th>Final OI</th><th>Δ</th><th>Δ&nbsp;%</th></tr></thead><tbody>';
+  order.forEach(m=>{
+    h+='<tr class="pvf-market-hd"><td colspan="5">'+esc(MARKET_LABELS[m]||m)+'</td></tr>';
+    const ks=new Set([...Object.keys(pre[m]||{}),...Object.keys(fin[m]||{})]);
+    [...ks].forEach(ct=>{
+      const a=pre[m]?.[ct], b=fin[m]?.[ct];
+      const d=(a!==null&&a!==undefined&&b!==null&&b!==undefined)?b-a:null;
+      const pc=pct(b,a);
+      const cls=d>0?'up':(d<0?'down':'flat');
+      h+='<tr><td class="lbl">'+esc(ct)+'</td><td class="num">'+fmtOI(a)+'</td><td class="num">'+fmtOI(b)+'</td>'+
+         '<td class="num '+cls+'">'+(d===null?'·':fmtSigned(d))+'</td>'+
+         '<td class="num '+cls+'">'+(pc===null?'·':(pc>0?'+':'')+pc.toFixed(1)+'%')+'</td></tr>';
+    });
   });
-  ctx.lineTo(xFor(points.length - 1), h - pad.bottom);
-  ctx.lineTo(xFor(0),                 h - pad.bottom);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
+  h+='</tbody></table></div>';
+  h+='<div class="pvf-note">Pre snapshot: <b>'+esc(p.pre?.snapshot_date||'—')+'</b> · Final snapshot: <b>'+esc(p.final?.snapshot_date||'—')+'</b>. '+
+     'Positive Δ = OI added between the pre and final prints.</div></div>';
+  c.innerHTML=h;
+  $('#pvf-png').onclick=()=>exportPvfPng(p,order,pre,fin);
+  $('#pvf-copy').onclick=()=>copyPvf(order,pre,fin);
+}
 
-  ctx.beginPath();
-  points.forEach((p, i) => {
-    const x = xFor(i), y = yFor(p.v);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+function copyPvf(order,pre,fin){
+  let lines=['Contract\tPre\tFinal\tDelta\tDelta%'];
+  order.forEach(m=>{
+    lines.push(m);
+    const ks=new Set([...Object.keys(pre[m]||{}),...Object.keys(fin[m]||{})]);
+    [...ks].forEach(ct=>{
+      const a=pre[m]?.[ct],b=fin[m]?.[ct];const d=(a!=null&&b!=null)?b-a:'';const pc=pct(b,a);
+      lines.push([ct,a??'',b??'',d,pc===null?'':pc.toFixed(1)+'%'].join('\t'));
+    });
   });
-  ctx.strokeStyle = '#4db8ff';
-  ctx.lineWidth   = 2;
-  ctx.stroke();
+  navigator.clipboard?.writeText(lines.join('\n')).then(()=>flash('#pvf-copy','✓ Copied'));
+}
+function flash(sel,txt){const b=$(sel);const o=b.textContent;b.textContent=txt;setTimeout(()=>b.textContent=o,1400);}
 
-  const last = points[points.length - 1];
-  const lx = xFor(points.length - 1), ly = yFor(last.v);
-  ctx.fillStyle = '#50e890';
-  ctx.beginPath();
-  ctx.arc(lx, ly, 3, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#7a95b8';
-  ctx.font = '10px IBM Plex Mono, monospace';
-  ctx.fillText(formatTooltipDate(points[0].d), pad.left, h - 4);
-  const endLabel = formatTooltipDate(last.d);
-  const endW = ctx.measureText(endLabel).width;
-  ctx.fillText(endLabel, w - pad.right - endW, h - 4);
+function exportPvfPng(p,order,pre,fin){
+  const rowH=22, padX=18, headH=92, W=560;
+  let rows=0; order.forEach(m=>{rows+=1+new Set([...Object.keys(pre[m]||{}),...Object.keys(fin[m]||{})]).size;});
+  const H=headH+rows*rowH+40, sc=2;
+  const cv=document.createElement('canvas'); cv.width=W*sc; cv.height=H*sc;
+  const x=cv.getContext('2d'); x.scale(sc,sc);
+  x.fillStyle='#ffffff'; x.fillRect(0,0,W,H);
+  // header
+  x.fillStyle='#1b2c47'; x.fillRect(0,0,W,58);
+  x.fillStyle='#eaf1fb'; x.font='800 18px Inter,Segoe UI,system-ui,sans-serif';
+  x.fillText('OI PROFILE — PRE vs FINAL',padX,26);
+  x.fillStyle='#8fb0d8'; x.font='italic 11px Inter,Segoe UI,system-ui,sans-serif';
+  x.fillText('Pre '+(p.pre?.snapshot_date||'—')+'   ·   Final '+(p.final?.snapshot_date||'—'),padX,44);
+  // col header
+  const cx=[padX,260,350,440,510];
+  x.fillStyle='#41597f'; x.fillRect(0,58,W,26);
+  x.fillStyle='#eaf1fb'; x.font='700 10.5px Inter,Segoe UI,system-ui,sans-serif';
+  x.fillText('CONTRACT',cx[0],75); ['PRE','FINAL','Δ','Δ%'].forEach((t,i)=>{x.textAlign='right';x.fillText(t,cx[i+1]+34,75);x.textAlign='left';});
+  let y=headH;
+  order.forEach(m=>{
+    x.fillStyle='#eef1f6'; x.fillRect(0,y-14,W,rowH);
+    x.fillStyle='#3f577c'; x.font='800 10px Inter,sans-serif';
+    x.fillText((MARKET_LABELS[m]||m).toUpperCase(),padX,y);
+    y+=rowH;
+    const ks=new Set([...Object.keys(pre[m]||{}),...Object.keys(fin[m]||{})]);
+    let alt=false;
+    [...ks].forEach(ct=>{
+      if(alt){x.fillStyle='#f4f6fa';x.fillRect(0,y-14,W,rowH);} alt=!alt;
+      const a=pre[m]?.[ct],b=fin[m]?.[ct];const d=(a!=null&&b!=null)?b-a:null;const pc=pct(b,a);
+      x.fillStyle='#17233b'; x.font='700 11px Inter,sans-serif'; x.fillText(ct,cx[0],y);
+      x.font='11px "SF Mono",Roboto Mono,monospace'; x.textAlign='right';
+      x.fillStyle='#43536e'; x.fillText(fmtOI(a),cx[1]+34,y); x.fillText(fmtOI(b),cx[2]+34,y);
+      x.fillStyle=d>0?'#1f9d6b':(d<0?'#cf3f38':'#7b8aa1');
+      x.fillText(d===null?'·':fmtSigned(d),cx[3]+34,y);
+      x.fillText(pc===null?'·':(pc>0?'+':'')+pc.toFixed(1)+'%',cx[4]+34,y);
+      x.textAlign='left';
+      y+=rowH;
+    });
+  });
+  cv.toBlob(bl=>{const u=URL.createObjectURL(bl);const a=document.createElement('a');
+    a.href=u;a.download='OI_pre_vs_final_'+(p.final?.snapshot_date||'').replace(/\//g,'-')+'.png';a.click();
+    setTimeout(()=>URL.revokeObjectURL(u),2000); flash('#pvf-png','✓ Saved');});
 }
 
-// ── FORMAT ──
-function fmtOI(v) {
-  if (v == null || isNaN(v)) return '—';
-  const a = Math.abs(v);
-  if (a >= 1e6) return (v / 1e6).toFixed(1) + 'M';
-  if (a >= 1e3) return (v / 1e3).toFixed(0) + 'K';
-  return String(Math.round(v));
+/* ============================ TOOLTIPS ============================ */
+const tip=$('#tip');
+function wireTips(){
+  document.querySelectorAll('[data-tip]').forEach(el=>{
+    el.addEventListener('mouseenter',e=>{tip.innerHTML=esc(el.getAttribute('data-tip')).replace(/\n/g,'<br>');tip.style.opacity='1';});
+    el.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';});
+    el.addEventListener('mouseleave',()=>{tip.style.opacity='0';});
+  });
 }
-function fmt(v) {
-  if (v == null || isNaN(v)) return '—';
-  const a = Math.abs(v);
-  if (a >= 1e6) return (v / 1e6).toFixed(1) + 'M';
-  if (a >= 1e3) return (v / 1e3).toFixed(0) + 'K';
-  return String(Math.round(v));
-}
-function formatTooltipDate(v) {
-  const s = String(v || '').trim();
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (!m) return s;
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const day    = m[1].padStart(2, '0');
-  const month  = months[Math.max(0, Math.min(11, Number(m[2]) - 1))];
-  const year   = m[3].slice(-2);
-  return `${day}/${month}/${year}`;
-}
-function formatPublishedTime(v) {
-  if (!v) return '—';
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return String(v);
-  return new Intl.DateTimeFormat(undefined, {
-    day:'2-digit', month:'short', year:'2-digit',
-    hour:'2-digit', minute:'2-digit',
-  }).format(d);
-}
-function hexAlpha(hex, a) {
-  const r = parseInt(hex.slice(1,3), 16);
-  const g = parseInt(hex.slice(3,5), 16);
-  const b = parseInt(hex.slice(5,7), 16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-function escapeHTML(v) {
-  return String(v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-}
-function loading(b) { document.getElementById('lo').classList.toggle('show', b); }
 
-// ── INIT ──
+/* ============================ BOOT ============================ */
+document.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>setView(b.dataset.v));
+$('#btn-refresh').onclick=()=>{S.pvf=null;fetchData();};
 fetchData();
+setInterval(fetchData, 5*60*1000);   // auto-refresh every 5 min
 </script>
 </body>
 </html>
