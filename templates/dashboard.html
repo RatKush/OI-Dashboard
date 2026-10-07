@@ -90,6 +90,9 @@ header.topbar{
   text-transform:uppercase;color:#bcd2ec}
 .livedot i{width:9px;height:9px;border-radius:50%;background:#4fd18a;
   box-shadow:0 0 0 0 rgba(79,209,138,.6);animation:pulse 2.4s infinite}
+.livedot{cursor:help}
+.livedot.stale{color:#f5cf7a} .livedot.stale i{background:#f0b429;animation:none;box-shadow:0 0 0 3px rgba(240,180,41,.25)}
+.livedot.off{color:#f3a3a3}   .livedot.off i{background:#e5484d;animation:none;box-shadow:0 0 0 3px rgba(229,72,77,.25)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,209,138,.55)}70%{box-shadow:0 0 0 9px rgba(79,209,138,0)}100%{box-shadow:0 0 0 0 rgba(79,209,138,0)}}
 .btn{
   font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.08em;
@@ -161,22 +164,32 @@ table.grid tbody tr:hover td{background:#eef3fb}
 table.grid tbody tr:hover td.lbl{background:#eef3fb}
 td.latest{font-weight:800;color:var(--ink);background:#f0f4fa !important;border-left:2px solid #cfd6e1;border-right:2px solid #cfd6e1}
 tr.pack-sep td{border-bottom:2px solid var(--line-strong)}
+tr.total td.up{color:var(--pos)} tr.total td.down{color:var(--neg)}
 tr.total td{background:#e4e9f1 !important;font-weight:800;color:var(--navy);
   border-top:2px solid #9fb0c8}
 td.pack-label{background:#eef1f6 !important;color:var(--slate);font-weight:800;
   font-size:10px;letter-spacing:.14em;text-transform:uppercase;text-align:left}
 table.grid th.sepL,table.grid td.sepL{border-left:2px solid #aeb9ca}
+table.grid th.sepX,table.grid td.sepX{border-left:4px solid #41597f}   /* # block | % block divider */
 .delta-chip{display:inline-block;min-width:52px;text-align:right;font-family:var(--mono);
   font-size:11px;font-weight:700}
 .up{color:var(--pos)} .down{color:var(--neg)} .flat{color:var(--muted)}
 .spark{display:block}
 .contract-sub{font-weight:600;color:var(--muted);font-size:10.5px;margin-left:6px}
+table.grid thead th.sortable{cursor:pointer;user-select:none}
+table.grid thead th.sortable:hover{color:var(--navy);background:#dfe6f0}
+table.grid thead th.sorted{color:var(--navy);background:#dbe4f2}
+th .arw{display:inline-block;width:1em;margin-left:3px;font-size:9px;color:var(--accent);text-align:center}
+th.sortable:not(.sorted):hover .arw::after{content:'⇅';color:var(--muted)}
+.pack-chip{display:inline-block;margin-left:8px;padding:1px 6px;border-radius:3px;
+  border:1px solid rgba(23,35,59,.12);font-size:9px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;vertical-align:1px}
 
 /* ---------- legend ---------- */
-.legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+.legend{display:flex;align-items:center;gap:16px;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;
   padding:10px 16px;border-top:1px solid var(--line);background:#fafbfd;
   font-size:11px;color:var(--ink-soft)}
-.legend .ramp{display:inline-flex;height:12px;width:150px;border-radius:3px;overflow:hidden;
+.legend .ramp{display:inline-flex;height:12px;width:110px;border-radius:3px;overflow:hidden;
   border:1px solid #cfd6e1;background:linear-gradient(90deg,#2f6fb0,#eef2f7 50%,#1f9d6b)}
 .legend .lg{display:flex;align-items:center;gap:6px}
 .legend b{color:var(--ink)}
@@ -184,9 +197,23 @@ table.grid th.sepL,table.grid td.sepL{border-left:2px solid #aeb9ca}
 /* ---------- Series ---------- */
 .series-tools{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:12px 16px;
   border-bottom:1px solid var(--line);background:#fafbfd}
-.chart-box{padding:16px;height:520px}
+.chart-box{padding:16px;height:490px}
+.ser-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;padding:0 16px 14px}
+.lg-item{appearance:none;border:0;background:transparent;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--sans);font-size:11px;color:var(--ink-soft);padding:3px 5px;border-radius:4px}
+.lg-item:hover{background:#eef3fb}
+.lg-item i{width:8px;height:8px;border-radius:50%;flex:none}
+.lg-item .lg-val{flex:none;white-space:nowrap;font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;color:var(--ink);font-weight:700}
+.lg-item.off{opacity:.45}
+.lg-item.off .lg-name{text-decoration:line-through}
 .series-tools label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;
   color:var(--ink-soft);font-weight:700}
+.player{display:flex;align-items:center;gap:10px;margin-left:auto}
+.btn-play{width:30px;height:30px;border-radius:50%;border:1px solid #c3ccda;background:#fff;color:var(--navy);
+  cursor:pointer;font-size:11px;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:.12s}
+.btn-play:hover,.btn-play.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.player input[type=range]{width:220px;accent-color:var(--navy);cursor:pointer}
+.scrub-date{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);min-width:74px}
 select.pick{font-family:var(--sans);font-size:12px;padding:6px 10px;border:1px solid #c3ccda;
   border-radius:6px;background:#fff;color:var(--ink)}
 
@@ -196,6 +223,14 @@ select.pick{font-family:var(--sans);font-size:12px;padding:6px 10px;border:1px s
 .btn-ghost:hover{background:#e2e9f3;color:var(--navy)}
 .pvf-note{padding:10px 16px;font-size:11.5px;color:var(--ink-soft);background:#fafbfd;
   border-top:1px solid var(--line)}
+.pvf-cols{display:flex;gap:16px;align-items:flex-start;padding:16px;overflow-x:auto}
+.pvf-col{flex:1 1 0;min-width:380px}
+.pvf-col table.grid{border:1px solid var(--line)}
+table.grid thead th.pvf-mkt{text-align:left;padding:8px 10px}
+.pvf-wait{padding:52px 24px 56px;text-align:center}
+.pvf-wait .w1{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:12px}
+.pvf-wait .w2{font-size:12.5px;line-height:1.8;color:var(--ink-soft);max-width:620px;margin:0 auto}
+.pvf-wait .w3{color:var(--muted)}
 .pvf-market-hd td{background:#eef1f6 !important;color:var(--slate);font-weight:800;
   letter-spacing:.12em;text-transform:uppercase;font-size:10.5px}
 
@@ -206,8 +241,6 @@ select.pick{font-family:var(--sans);font-size:12px;padding:6px 10px;border:1px s
   opacity:0;transition:opacity .1s;max-width:260px;line-height:1.5}
 .tip b{color:#fff}
 .tip .k{color:#8fb0d8}
-footer{padding:8px 24px 26px;text-align:center;color:var(--muted);font-size:11px}
-footer a{color:var(--accent);text-decoration:none}
 @media (max-width:640px){
   .brand h1{font-size:16px;letter-spacing:.1em}
   main{padding:12px}
@@ -230,7 +263,7 @@ footer a{color:var(--accent);text-decoration:none}
     </div>
   </div>
   <div class="topbar-right">
-    <span class="livedot"><i></i> Live</span>
+    <span class="livedot" id="live" title="Checking…"><i></i> <span id="live-txt">Live</span></span>
     <button class="btn btn-refresh" id="btn-refresh">↻ Refresh</button>
   </div>
 </header>
@@ -250,16 +283,14 @@ footer a{color:var(--accent);text-decoration:none}
   <div class="loading">Loading open-interest data…</div>
 </main>
 
-<footer>
-  Rates open-interest profiles · SR3 · Fed Funds · Treasuries · Euribor · SONIA · Brazil · CORRA
-  &nbsp;·&nbsp; auto-refreshes from the published workbook
-</footer>
-
 <div class="tip" id="tip"></div>
 
 <script>
 /* ============================ STATE ============================ */
-const S = { markets:{}, order:[], active:null, view:'heatmap', pvf:null, charts:[] };
+const S = { markets:{}, order:[], active:null, view:'heatmap', pvf:null, charts:[],
+            sort:{},       // per-market heat-map sort: {key:'latest'|'n<i>'|'p<i>', dir}; absent = curve order
+            seriesVis:{},    // per-market visible series labels, once the user toggles the legend
+            pvfSort:null };  // Pre vs Final sort shared by all market tables: {key:'pre'|'final'|'delta'|'pct', dir}
 const COLS = 12;                 // recent trading days shown in heat-map
 const MARKET_LABELS = {
   SR3:'SOFR 3-Month · SR3', FF:'Fed Funds 30-Day · ZQ / FF',
@@ -267,6 +298,37 @@ const MARKET_LABELS = {
   SONIA:'SONIA 3-Month · SFI', Brazil:'Brazil DI1', CORRA:'CORRA 3-Month · CRA'
 };
 const STIR = new Set(['SR3','ER','SONIA','CORRA','FF']);   // pack-separated chains
+// heat-map change horizons in trading-day offsets — mirrors the Futures OI summary (1D…3M)
+const HZ=[['1D',1],['3D',3],['1W',5],['2W',10],['3W',15],['4W',20],['2M',42],['3M',63]];
+const COLOR_PACK_MKTS = new Set(['SR3','ER','SONIA','CORRA']);   // quarterly chains: 4 contracts per colour pack
+const PACKS = [['Whites','#eef1f6','#43536e'],['Reds','#cf3f38','#fff'],['Greens','#1f9d6b','#fff'],
+  ['Blues','#2f6fb0','#fff'],['Golds','#c98a1f','#fff'],['Purples','#8e5bd0','#fff'],
+  ['Oranges','#d06a1f','#fff'],['Pinks','#b0417a','#fff'],['Silvers','#9aa6b2','#fff'],['Coppers','#a85828','#fff']];
+// FF packs = calendar quarters F G H | J K M | N Q U | V X Z; a part-quarter at either end stays its own group
+const FF_MONTHS='FGHJKMNQUVXZ';
+function ffQuarter(ct){
+  const m=/^([FGHJKMNQUVXZ])(\d{2})$/i.exec(String(ct).trim()); if(!m) return null;
+  const q=Math.floor(FF_MONTHS.indexOf(m[1].toUpperCase())/3);
+  return {key:+m[2]*4+q, label:'Q'+(q+1)+' '+m[2]};
+}
+function packEndAt(m,contracts,ri){   // does row ri close a pack (separator under it)?
+  if(ri>=contracts.length-1) return false;
+  if(m==='FF'){ const a=ffQuarter(contracts[ri]), b=ffQuarter(contracts[ri+1]); return !!a && !!b && a.key!==b.key; }
+  return STIR.has(m) && (ri+1)%4===0;
+}
+function packOf(m,contracts,ri){   // {g: pack index along the curve, label}
+  if(COLOR_PACK_MKTS.has(m)){ const g=Math.floor(ri/4); return PACKS[g]?{g,label:PACKS[g][0]}:null; }
+  if(m==='FF'){ const q=ffQuarter(contracts[ri]); if(!q) return null;
+    let g=0; for(let i=0;i<ri;i++) if(packEndAt(m,contracts,i)) g++;
+    return {g,label:q.label}; }
+  return null;
+}
+// always rendered so the Contract column keeps the same width; only visible when sorted
+function packChip(m,contracts,ri,hidden){
+  const pk=packOf(m,contracts,ri); if(!pk) return '';
+  const p=PACKS[pk.g%PACKS.length];
+  return '<span class="pack-chip" style="background:'+p[1]+';color:'+p[2]+(hidden?';visibility:hidden':'')+'">'+esc(pk.label)+'</span>';
+}
 
 /* ============================ HELPERS ============================ */
 const $ = s => document.querySelector(s);
@@ -274,14 +336,22 @@ function fmtOI(v){
   if(v===null||v===undefined||v==='') return '·';
   const n=Number(v); if(!isFinite(n)) return '·';
   const a=Math.abs(n);
-  if(a>=1e6) return (n/1e6).toFixed(2)+'M';
-  if(a>=1e3) return (n/1e3).toFixed(a>=1e5?0:1)+'K';
+  // everything in K so the table reads in one unit: 2.3K · 13K · 1,259K
+  if(a>=5e3) return Math.round(n/1e3).toLocaleString('en-US')+'K';
+  if(a>=1e3) return (n/1e3).toFixed(1)+'K';
   return String(Math.round(n));
 }
 function fmtSigned(v){
   if(v===null||v===undefined||!isFinite(v)) return '·';
   const s=v>0?'+':(v<0?'−':'');
   return s+fmtOI(Math.abs(v));
+}
+function fmtPct0(v){ const r=Math.round(v); return (r>0?'+':'')+r+'%'; }   // whole %, never "-0%"
+function fmtPctNum(v){ const r=Math.round(v); return (r>0?'+':'')+r; }       // whole %, no "%" symbol — the column header says %
+// heat-map % cells: one decimal inside ±5, whole numbers beyond (+12, −37); never "-0.0"
+function fmtHmPct(v){
+  const s=Math.abs(v)>=4.95?v.toFixed(0):v.toFixed(1);
+  return Number(s)===0?'0.0':(v>0?'+':'')+s;
 }
 function pct(a,b){ if(a===null||b===null||b===0||a===undefined||b===undefined) return null; return (a-b)/Math.abs(b)*100; }
 function parseD(s){ // dd/mm/yy -> Date
@@ -297,21 +367,49 @@ function heatColor(t){ // t in [-1,1] : blue(neg) -> white -> green(pos)
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 /* ============================ DATA ============================ */
+// header status dot: live (green) · stale (amber: a publication was missed) · off (red: last check failed)
+function setLive(state,title){
+  const el=$('#live'); el.className='livedot'+(state==='live'?'':' '+state); el.title=title;
+  $('#live-txt').textContent={live:'Live',stale:'Stale',off:'Offline'}[state];
+}
+function prevBizDay(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); do x.setDate(x.getDate()-1); while(x.getDay()===0||x.getDay()===6); return x; }
+// OI for day T lands on T+1, so before that morning's upload the data is normally 2 business days old —
+// only call it stale once it is older than that (one publication actually missed)
+function isStale(latest,now){ const d=parseD(latest); return !!d && d<prevBizDay(prevBizDay(now)); }
+const hhmm=()=>new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+
 async function fetchData(){
-  try{
-    const r = await fetch('/api/dashboard-data',{cache:'no-store'});
-    if(!r.ok) throw new Error('no data');
-    const d = await r.json();
-    S.markets = d.markets||{}; S.order = d.market_order||[];
-    if(!S.active || !S.markets[S.active]) S.active = S.order[0]||null;
-    $('#m-date').textContent = d.latest_date||'—';
-    $('#m-mkts').textContent = d.markets_count ?? S.order.length;
-    $('#m-contracts').textContent = d.contracts_count ?? '—';
-    $('#m-updated').textContent = fmtUpdated(d.updated_at);
-    buildTabs(); render();
+  let r, d;
+  try{   // only the network part can make the dot red — a rendering bug must not read as "Offline"
+    r = await fetch('/api/dashboard-data',{cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    d = await r.json();
   }catch(e){
-    $('#content').innerHTML = '<div class="card"><div class="empty">No data published yet. Once a workbook is uploaded on the admin panel it appears here automatically.</div></div>';
+    if(r && r.status===404){   // server is fine, nothing has been published yet
+      setLive('stale','No data published yet · checked '+hhmm());
+      $('#content').innerHTML = '<div class="card"><div class="empty">No data published yet. Once a workbook is uploaded on the admin panel it appears here automatically.</div></div>';
+      return;
+    }
+    // server unreachable / error: keep showing the last good data rather than blanking the board
+    setLive('off','Could not reach the server at '+hhmm()+(S.meta?' — showing data as of '+(S.meta.latest||'—'):'')+'. Retries automatically every 5 min.');
+    if(!S.order.length) $('#content').innerHTML = '<div class="card"><div class="empty">Could not reach the server. It will retry automatically.</div></div>';
+    return;
   }
+  const stale=isStale(d.latest_date,new Date());
+  setLive(stale?'stale':'live',(stale?'Behind schedule — a daily publication looks missed. ':'')+
+    'Data as of '+(d.latest_date||'—')+' · published '+fmtUpdated(d.updated_at)+' · checked '+hhmm());
+  S.markets = d.markets||{}; S.order = d.market_order||[];
+  if(S.active && !S.markets[S.active])   // market from URL: accept any letter case
+    S.active = S.order.find(m=>m.toLowerCase()===String(S.active).toLowerCase())||null;
+  if(!S.active) S.active = S.order[0]||null;
+  if(S.urlSort){ S.sort[S.active]=S.urlSort; S.urlSort=null; }
+  S.meta = { latest:d.latest_date, isFinal:d.is_final===true, updated:d.updated_at };
+  S.pvf = null;   // re-check Pre vs Final on every refresh, so "waiting" flips to the comparison by itself
+  $('#m-date').textContent = d.latest_date||'—';
+  $('#m-mkts').textContent = d.markets_count ?? S.order.length;
+  $('#m-contracts').textContent = d.contracts_count ?? '—';
+  $('#m-updated').textContent = fmtUpdated(d.updated_at);
+  buildTabs(); render();
 }
 function fmtUpdated(iso){
   if(!iso) return '—';
@@ -341,13 +439,42 @@ function setView(v){
   document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
   render();
 }
-function killCharts(){ S.charts.forEach(c=>{try{c.destroy()}catch(e){}}); S.charts=[]; }
+function killCharts(){
+  clearInterval(S.playTimer); S.playTimer=null;   // stop any Series replay
+  S.charts.forEach(c=>{try{c.destroy()}catch(e){}}); S.charts=[];
+}
+
+/* ============================ URL STATE ============================ */
+// shareable link to the current page + sort, e.g. ?m=SR3&sort=pct-1D-desc · ?m=FF&v=series · ?v=pvf&sort=delta-desc
+const VIEWS=['heatmap','series','pvf'];
+function sortToParam(s){
+  if(s.key==='latest') return 'latest-'+s.dir;
+  return (s.key[0]==='n'?'abs':'pct')+'-'+HZ[+s.key.slice(1)][0]+'-'+s.dir;
+}
+function paramToSort(p){
+  const m=/^(?:(latest)|(abs|pct)-(\w+))-(asc|desc)$/i.exec(p||''); if(!m) return null;
+  const dir=m[4].toLowerCase();
+  if(m[1]) return {key:'latest',dir};
+  const i=HZ.findIndex(([lab])=>lab.toLowerCase()===m[3].toLowerCase()); if(i<0) return null;
+  return {key:(m[2].toLowerCase()==='abs'?'n':'p')+i, dir};
+}
+function syncUrl(){
+  const q=new URLSearchParams();
+  if(S.active) q.set('m',S.active);
+  if(S.view!=='heatmap') q.set('v',S.view);
+  const s=S.sort[S.active];
+  if(s && S.view==='heatmap') q.set('sort',sortToParam(s));
+  if(S.pvfSort && S.view==='pvf') q.set('sort',S.pvfSort.key+'-'+S.pvfSort.dir);
+  const url=location.pathname+(q.toString()?'?'+q:'');
+  if(url!==location.pathname+location.search) history.replaceState(null,'',url);
+}
 
 /* ============================ RENDER ROUTER ============================ */
 function render(){
   killCharts();
   const c=$('#content');
   if(!S.active){ c.innerHTML='<div class="card"><div class="empty">No markets available.</div></div>'; return; }
+  syncUrl();
   if(S.view==='heatmap') renderHeatmap(c);
   else if(S.view==='series') renderSeries(c);
   else renderPvf(c);
@@ -356,11 +483,11 @@ function render(){
 /* ============================ HEAT-MAP ============================ */
 function renderHeatmap(c){
   const mk=S.markets[S.active]; if(!mk){c.innerHTML='';return;}
-  const dates=mk.dates||[];                          // newest-first
+  // newest-first; junk header columns (#REF!, repeated blocks) dropped. Rows stay generic curve positions,
+  // so each horizon compares today's Nth contract with whichever contract was Nth on that date
+  const dates=cleanDates(mk.dates||[]);
   const contracts=mk.contracts||[];
   const latestD=dates[0];
-  // change horizons in trading-day offsets — mirrors the Futures OI summary (1D…4W)
-  const HZ=[['1D',1],['3D',3],['1W',5],['2W',10],['3W',15],['4W',20],['2M',42],['3M',63]];
   const chNum={}, chPct={};
   const maxN=HZ.map(()=>0), maxP=HZ.map(()=>0);
   contracts.forEach(ct=>{
@@ -378,19 +505,39 @@ function renderHeatmap(c){
   // header — two segregated blocks: Δ (#) and Δ (%)
   let h='<div class="card"><div class="card-hd"><div class="t">'+esc(MARKET_LABELS[S.active]||S.active)+
         '<small>Open-Interest change · vs prior sessions</small></div>'+
-        '<div class="r">colour = Δ OI · green rising · blue falling</div></div><div class="tbl-wrap"><table class="grid"><thead>';
-  h+='<tr><th class="lbl" rowspan="2">Contract</th><th class="lbl" rowspan="2">Trend</th>'+
-     '<th rowspan="2">Latest OI</th>'+
+        '<div class="r">Δ OI · green rising · blue falling</div></div><div class="tbl-wrap"><table class="grid"><thead>';
+  const sort=S.sort[S.active]||null;
+  const sortTh=(key,label,cls,attrs)=>{
+    const on=!!sort&&sort.key===key;
+    return '<th class="sortable'+(cls?' '+cls:'')+(on?' sorted':'')+'" data-sort="'+key+'"'+(attrs||'')+
+      ' aria-sort="'+(on?(sort.dir==='asc'?'ascending':'descending'):'none')+'">'+label+
+      '<span class="arw">'+(on?(sort.dir==='asc'?'▲':'▼'):'')+'</span></th>';
+  };
+  // Contract restores curve order; it only shows ⇅ on hover
+  h+='<tr><th class="lbl sortable" rowspan="2" data-sort="" title="Curve order">Contract<span class="arw"></span></th>'+
+     '<th class="lbl" rowspan="2">Trend</th>'+
+     sortTh('latest','Latest OI','',' rowspan="2"')+
      '<th class="grp sepL" colspan="'+HZ.length+'">Δ Open Interest&nbsp;(#)</th>'+
-     '<th class="grp sepL" colspan="'+HZ.length+'">Δ Open Interest&nbsp;(%)</th></tr><tr>';
-  HZ.forEach(([lab],i)=>h+='<th'+(i===0?' class="sepL"':'')+'>'+lab+'</th>');
-  HZ.forEach(([lab],i)=>h+='<th'+(i===0?' class="sepL"':'')+'>'+lab+'</th>');
+     '<th class="grp sepX" colspan="'+HZ.length+'">Δ Open Interest&nbsp;(%)</th></tr><tr>';
+  HZ.forEach(([lab],i)=>h+=sortTh('n'+i,lab,i===0?'sepL':''));
+  HZ.forEach(([lab],i)=>h+=sortTh('p'+i,lab,i===0?'sepX':''));
   h+='</tr></thead><tbody>';
-  contracts.forEach((ct,ri)=>{
+  // row order: curve order by default; when sorted, across the whole curve (blanks always last)
+  const rows=contracts.map((ct,ri)=>({ct,ri}));
+  if(sort){
+    const val=r=>sort.key==='latest'?mk.data[r.ct]?.[latestD]
+      :(sort.key[0]==='n'?chNum:chPct)[r.ct][+sort.key.slice(1)];
+    const sgn=sort.dir==='asc'?1:-1;
+    rows.sort((a,b)=>{const va=val(a),vb=val(b);
+      if(va==null) return vb==null?a.ri-b.ri:1;
+      if(vb==null) return -1;
+      return (va-vb)*sgn||a.ri-b.ri;});
+  }
+  rows.forEach(({ct,ri})=>{
     const latest=mk.data[ct]?.[latestD];
-    const sepClass=(STIR.has(S.active) && (ri+1)%4===0 && ri<contracts.length-1)?'pack-sep':'';
+    const sepClass=(!sort && packEndAt(S.active,contracts,ri))?'pack-sep':'';
     h+='<tr class="'+sepClass+'">';
-    h+='<td class="lbl">'+esc(ct)+'</td>';
+    h+='<td class="lbl">'+esc(ct)+packChip(S.active,contracts,ri,!sort)+'</td>';
     h+='<td class="num">'+sparkline(ct,mk,dates)+'</td>';
     h+='<td class="latest num">'+fmtOI(latest)+'</td>';
     // Δ (#) block
@@ -405,7 +552,7 @@ function renderHeatmap(c){
       const t=(p===null||maxP[i]===0)?null:p/maxP[i];
       const cls=p<0?'down':'';
       const tip=esc(ct+' · Δ'+HZ[i][0]+' (%)\n'+(p===null?'—':(p>0?'+':'')+p.toFixed(2)+'% vs '+(dates[HZ[i][1]]||'—')));
-      h+='<td class="num '+cls+(i===0?' sepL':'')+'" style="background:'+heatColor(t)+'" data-tip="'+tip+'">'+(p===null?'·':(p>0?'+':'')+p.toFixed(1)+'%')+'</td>';
+      h+='<td class="num '+cls+(i===0?' sepX':'')+'" style="background:'+heatColor(t)+'" data-tip="'+tip+'">'+(p===null?'·':fmtHmPct(p))+'</td>';
     });
     h+='</tr>';
   });
@@ -417,15 +564,23 @@ function renderHeatmap(c){
     return any?{d:sn-sp,p:sp!==0?(sn-sp)/Math.abs(sp)*100:null}:{d:null,p:null};});
   h+='<tr class="total"><td class="lbl">TOTAL</td><td></td><td class="num">'+fmtOI(sumNow)+'</td>';
   tot.forEach((x,i)=>h+='<td class="num '+(x.d<0?'down':'')+(i===0?' sepL':'')+'">'+(x.d===null?'·':fmtSigned(x.d))+'</td>');
-  tot.forEach((x,i)=>h+='<td class="num '+(x.p<0?'down':'')+(i===0?' sepL':'')+'">'+(x.p===null?'·':(x.p>0?'+':'')+x.p.toFixed(1)+'%')+'</td>');
+  tot.forEach((x,i)=>h+='<td class="num '+(x.p<0?'down':'')+(i===0?' sepX':'')+'">'+(x.p===null?'·':fmtHmPct(x.p))+'</td>');
   h+='</tr>';
   h+='</tbody></table></div>';
-  h+='<div class="legend"><span class="lg"><b>Heat-map</b></span>'+
-     '<span class="lg">OI falling <span class="ramp"></span> OI rising</span>'+
-     '<span class="lg" style="color:var(--muted)">each column scaled on its own · white ≈ unchanged</span>'+
-     '<span class="lg" style="color:var(--muted)">horizons = 1D / 3D / 1W / 2W / 3W / 4W / 2M / 3M sessions · negatives in <span class="down">red</span></span></div>';
+  h+='<div class="legend"><span class="lg">OI falling <span class="ramp"></span> OI rising</span>'+
+     '<span class="lg" style="color:var(--muted)">per-column scale · white ≈ unchanged · negatives <span class="down">red</span> · '+
+     'click header to sort ▼/▲ · <b>Contract</b> resets</span></div>';
   h+='</div>';
   c.innerHTML=h;
+  c.querySelectorAll('th[data-sort]').forEach(th=>th.onclick=()=>{
+    // cycle: descending → ascending → curve order (Contract always → curve order)
+    const k=th.dataset.sort, cur=S.sort[S.active];
+    if(!k || (cur && cur.key===k && cur.dir==='asc')) delete S.sort[S.active];
+    else S.sort[S.active]={key:k, dir:(cur && cur.key===k)?'asc':'desc'};
+    const sl=c.querySelector('.tbl-wrap')?.scrollLeft||0;
+    render();
+    const w=c.querySelector('.tbl-wrap'); if(w) w.scrollLeft=sl;
+  });
   wireTips();
 }
 
@@ -446,8 +601,11 @@ function sparkline(ct,mk,allDates){
 }
 
 /* ============================ SERIES ============================ */
-const SERIES_PALETTE=['#1b2c47','#2f6fb0','#1f9d6b','#c98a1f','#8e5bd0','#cf3f38',
-  '#0f8a8a','#6b7a90','#b0417a','#3d7bd1','#6a9a2f','#d06a1f'];
+// slots 1-4 go to the default-visible lines (validated all-pairs incl. colour-blind);
+// 5-8 to the next lines switched on; 9-12 only matter with 9+ lines shown
+const SERIES_PALETTE=['#2a78d6','#eb6834','#199e70','#4a3aa7',
+  '#c98500','#d55181','#008300','#e34948',
+  '#1b2c47','#0f8a8a','#8a5a2b','#6b7a90'];
 function fmtDateShort(s){const d=parseD(s);return d?d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}):s;}
 function fmtDateLong(s){const d=parseD(s);return d?d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}):s;}
 
@@ -461,15 +619,91 @@ const crosshairPlugin={id:'crosshair',afterDatasetsDraw(chart){
   }
 }};
 
-function seriesDatasets(mk,contracts,dates,N,mode){
+// value labels at the right end of each visible line. Positions are pinned to where each line FINISHES,
+// so during a replay the labels never move or swap — only the values update. Nudged apart if close.
+const shortName=ct=>String(ct).replace(/^US\s+/i,'').replace(/\s*YEAR\s*/i,'Y ').replace(/\s*TREASURY/i,'').replace(/ULTRA/i,'Ultra').trim();
+const END_FONT='700 11px Inter,"Segoe UI",system-ui,sans-serif';
+const lastVal=arr=>{ for(let k=arr.length-1;k>=0;k--) if(arr[k]!=null) return arr[k]; return null; };
+const endLabelPlugin={id:'endLabels',afterDatasetsDraw(chart,args,opts){
+  const {ctx,chartArea}=chart, items=[];
+  chart.data.datasets.forEach((ds,j)=>{
+    if(!chart.isDatasetVisible(j)) return;
+    const anchor=lastVal(ds.$full||ds.data); if(anchor==null) return;
+    const now=lastVal(ds.data);
+    items.push({y:chart.scales.y.getPixelForValue(anchor),color:ds.borderColor,
+      text:shortName(ds.label)+'  '+(now==null?'·':opts.fmt(now))});
+  });
+  items.sort((a,b)=>a.y-b.y);
+  for(let i=1;i<items.length;i++) items[i].y=Math.max(items[i].y,items[i-1].y+14);
+  const over=items.length?items[items.length-1].y-(chartArea.bottom-6):0;
+  if(over>0) items.forEach(it=>it.y-=over);
+  const x0=chartArea.right+10;
+  ctx.save(); ctx.font=END_FONT; ctx.textBaseline='middle';
+  items.forEach(it=>{
+    ctx.fillStyle=it.color; ctx.beginPath(); ctx.arc(x0+4,it.y,4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#17233b'; ctx.fillText(it.text,x0+13,it.y);
+  });
+  ctx.restore();
+}};
+function endLabelWidth(datasets,fmt){   // right padding wide enough for the longest end label
+  const cx=document.createElement('canvas').getContext('2d'); cx.font=END_FONT; let w=0;
+  datasets.forEach(ds=>ds.data.forEach(v=>{ if(v!=null) w=Math.max(w,cx.measureText(shortName(ds.label)+'  '+fmt(v)).width); }));
+  return Math.ceil(w)+28;
+}
+
+// default lines: alternate contracts, max 4; with under 8 contracts, top up from the front (6 → 0,1,2,4)
+function defaultVisible(n){
+  const v=[];
+  for(let i=0;i<n&&v.length<4;i+=2) v.push(i);
+  for(let i=1;i<n&&v.length<4;i+=2) v.push(i);
+  return new Set(v);
+}
+/* Rows come from generic tickers (SFR1, SFR2 …): each row is a curve position, and on a roll date
+   every row steps to the next contract. These rebuild each contract's own history for the chart. */
+function cleanDates(ds){   // newest-first; drop junk headers (#REF!, repeated blocks): real dates, strictly descending
+  const out=[]; let last=null;
+  for(const s of ds){ const d=parseD(s); if(!d) continue; if(last===null||d<last){ out.push(s); last=d; } }
+  return out;
+}
+function rollIdx(mk,chron){   // indices t where the strip rolled between chron[t-1] and chron[t]
+  const cs=mk.contracts||[], out=new Set();
+  for(let t=1;t<chron.length;t++){
+    let votes=0,tot=0;
+    for(let k=0;k<cs.length-1;k++){
+      const a=mk.data[cs[k]]?.[chron[t]], same=mk.data[cs[k]]?.[chron[t-1]], next=mk.data[cs[k+1]]?.[chron[t-1]];
+      if(a==null||same==null||next==null) continue;
+      tot++; if(Math.abs(a-next)<Math.abs(a-same)) votes++;   // today's row k matches yesterday's row k+1
+    }
+    if(tot>=3 && votes/tot>=0.6) out.add(t);
+  }
+  return out;
+}
+function stitchedSeries(mk,chron,rolls,i){   // today's i-th contract sat one row further back per roll
+  const cs=mk.contracts||[], out=new Array(chron.length); let r=0;
+  for(let t=chron.length-1;t>=0;t--){
+    const v=cs[i+r]!=null?mk.data[cs[i+r]]?.[chron[t]]:null;
+    out[t]=v==null?null:Number(v);
+    if(rolls.has(t)) r++;
+  }
+  return out;
+}
+// roll = {idx:Set, stitch:bool} — stitch where the full strip is present; otherwise just break the line at each roll
+function seriesDatasets(mk,contracts,dates,N,mode,roll){
+  const vis=S.seriesVis[S.active], def=defaultVisible(N);
+  // colour slot per contract: default-visible lines first (curve order), then the rest — fixed, so toggling never repaints
+  const slotOrder=[...[...def].sort((a,b)=>a-b), ...[...Array(N).keys()].filter(i=>!def.has(i))];
+  const slot=new Map(slotOrder.map((ci,k)=>[ci,k]));
   return contracts.slice(0,N).map((ct,i)=>{
-    const col=SERIES_PALETTE[i%SERIES_PALETTE.length];
-    const raw=dates.map(d=>{const v=mk.data[ct]?.[d];return v==null?null:Number(v);});
+    const col=SERIES_PALETTE[slot.get(i)%SERIES_PALETTE.length];
+    const raw=roll.stitch ? stitchedSeries(mk,dates,roll.idx,i)
+      : dates.map(d=>{const v=mk.data[ct]?.[d];return v==null?null:Number(v);});
     let data=raw;
     if(mode==='pct'){ let base=null; for(const v of raw){ if(v!=null){base=v;break;} }
       data=raw.map(v=>(v==null||base==null||base===0)?null:(v-base)/base*100); }
-    return { label:ct, data, borderColor:col, backgroundColor:col,
+    const hidden=vis ? !vis.includes(ct) : !def.has(i);   // the rest are one legend click away
+    return { label:ct, data, hidden, borderColor:col, backgroundColor:col,
       borderWidth:2, tension:.35, cubicInterpolationMode:'monotone', spanGaps:true,
+      segment:roll.stitch?undefined:{borderColor:c=>roll.idx.has(c.p1DataIndex)?'transparent':undefined},
       pointRadius:(ctx)=>{let li=-1;const a=ctx.dataset.data;for(let k=a.length-1;k>=0;k--){if(a[k]!=null){li=k;break;}}return ctx.dataIndex===li?3.2:0;},
       pointBackgroundColor:col, pointBorderColor:'#fff', pointBorderWidth:1.6,
       pointHoverRadius:5, pointHoverBorderColor:'#fff', pointHoverBorderWidth:2 };
@@ -480,38 +714,39 @@ function renderSeries(c){
   if(!S.seriesMode) S.seriesMode='pct';
   const mode=S.seriesMode, isPct=(mode==='pct');
   const contracts=mk.contracts||[];
-  const dates=[...(mk.dates||[])].reverse();     // chronological (oldest→newest)
+  const dates=cleanDates(mk.dates||[]).reverse();     // chronological (oldest→newest)
   const labels=dates.slice();
   const N=Math.min(contracts.length,12);
-  const datasets=seriesDatasets(mk,contracts,dates,N,mode);
+  // Brazil is filtered to F/J/N/V server-side, so its strip has gaps and can't be re-stitched
+  const roll={idx:rollIdx(mk,dates), stitch:!/brazil|brl/i.test(S.active)};
+  const datasets=seriesDatasets(mk,contracts,dates,N,mode,roll);
   c.innerHTML='<div class="card"><div class="card-hd"><div class="t">'+esc(MARKET_LABELS[S.active]||S.active)+
-    '<small>Open-Interest '+(isPct?'relative change':'levels')+'</small></div><div class="r">front '+N+' contracts · '+labels.length+' sessions</div></div>'+
+    '<small>Open-Interest '+(isPct?'relative change':'levels')+'</small></div></div>'+
     '<div class="series-tools"><div class="seg small" id="ser-mode">'+
       '<button data-m="pct"'+(isPct?' class="active"':'')+'>% Change</button>'+
       '<button data-m="level"'+(!isPct?' class="active"':'')+'>Levels</button></div>'+
-      '<label>'+(isPct?'Each contract indexed to the start of the window (0%) — shows how positioning has actually moved.':'Absolute open interest, in contracts.')+' Hover for a cross-section · click the legend to show / hide a line.</label>'+
+      '<label>'+(isPct?'Each contract indexed to the start of the window (0%)':'Absolute open interest, in contracts')+'</label>'+
+      '<div class="player"><button class="btn-play" id="ser-play" title="Replay">▶</button>'+
+      '<input type="range" id="ser-scrub" min="0" max="'+(labels.length-1)+'" value="'+(labels.length-1)+'" aria-label="Replay date">'+
+      '<span class="scrub-date" id="ser-date">'+esc(fmtDateLong(labels[labels.length-1]||''))+'</span></div>'+
     '</div>'+
-    '<div class="chart-box"><canvas id="ser"></canvas></div></div>';
+    '<div class="chart-box"><canvas id="ser"></canvas></div><div class="ser-legend" id="ser-legend"></div></div>';
   const ctx=$('#ser').getContext('2d');
-  const chart=new Chart(ctx,{type:'line',data:{labels,datasets},plugins:[crosshairPlugin],options:{
+  const fmtVal=v=>isPct?fmtPct0(v):fmtOI(v);
+  const chart=new Chart(ctx,{type:'line',data:{labels,datasets},plugins:[crosshairPlugin,endLabelPlugin],options:{
     responsive:true,maintainAspectRatio:false,
     interaction:{mode:'index',intersect:false},
-    layout:{padding:{top:8,right:16,bottom:2,left:2}},
+    layout:{padding:{top:8,right:endLabelWidth(datasets,fmtVal),bottom:2,left:2}},
     elements:{line:{borderJoinStyle:'round',capBezierPoints:true}},
     plugins:{
-      legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',boxWidth:8,boxHeight:8,
-        padding:15,font:{size:11},color:'#43536e',
-        generateLabels(ch){const items=Chart.defaults.plugins.legend.labels.generateLabels(ch);
-          items.forEach(it=>{const ds=ch.data.datasets[it.datasetIndex];const arr=ds.data;
-            let last=null;for(let k=arr.length-1;k>=0;k--){if(arr[k]!=null){last=arr[k];break;}}
-            it.text=ds.label+'  ·  '+(isPct?(last==null?'·':(last>0?'+':'')+last.toFixed(1)+'%'):fmtOI(last));});
-          return items;}}},
+      endLabels:{fmt:fmtVal},
+      legend:{display:false},   // HTML legend below (#ser-legend) — values update with the replay without reflowing
       tooltip:{enabled:true,backgroundColor:'rgba(23,35,59,.97)',titleColor:'#fff',bodyColor:'#dbe6f5',
         borderColor:'#31456a',borderWidth:1,padding:{top:10,bottom:10,left:12,right:12},
         cornerRadius:8,titleFont:{size:12,weight:'700'},bodyFont:{size:11.5},boxPadding:5,
         usePointStyle:true,itemSort:(a,b)=>b.parsed.y-a.parsed.y,
         callbacks:{title:(items)=>items.length?fmtDateLong(items[0].label):'',
-          label:(x)=>'  '+x.dataset.label+'   '+(isPct?((x.parsed.y>0?'+':'')+x.parsed.y.toFixed(2)+'%'):fmtOI(x.parsed.y))}}
+          label:(x)=>'  '+x.dataset.label+'   '+(isPct?fmtPct0(x.parsed.y):fmtOI(x.parsed.y))}}
     },
     scales:{
       x:{grid:{display:false},border:{color:'#c7cfdb'},
@@ -528,102 +763,213 @@ function renderSeries(c){
   S.charts.push(chart);
   const mb=document.querySelector('#ser-mode');
   if(mb) mb.querySelectorAll('button').forEach(b=>b.onclick=()=>{S.seriesMode=b.dataset.m;render();});
+  buildSeriesLegend(chart,fmtVal);
+  wireReplay(chart,labels);
+}
+
+// HTML legend: click toggles a line (remembered per market); each value sits in a fixed-width slot,
+// so it updates in sync with the replay while nothing on the board moves
+function buildSeriesLegend(chart,fmt){
+  const box=$('#ser-legend'); if(!box) return;
+  const dss=chart.data.datasets;
+  let w=1; dss.forEach(ds=>ds.data.forEach(v=>{ if(v!=null) w=Math.max(w,fmt(v).length); }));
+  box.innerHTML=dss.map((ds,j)=>'<button type="button" class="lg-item"><i style="background:'+ds.borderColor+'"></i>'+
+    '<span class="lg-name">'+esc(ds.label)+'</span><span class="lg-val" style="width:'+(w+0.5)+'ch"></span></button>').join('');
+  const items=[...box.children];
+  const update=()=>items.forEach((el,j)=>{
+    el.classList.toggle('off',!chart.isDatasetVisible(j));
+    const v=lastVal(dss[j].data); el.lastChild.textContent=v==null?'·':fmt(v);
+  });
+  items.forEach((el,j)=>el.onclick=()=>{
+    chart.setDatasetVisibility(j,!chart.isDatasetVisible(j));
+    S.seriesVis[S.active]=dss.filter((ds,i)=>chart.isDatasetVisible(i)).map(ds=>ds.label);
+    if(chart.$relock) chart.$relock(); else chart.update('none');
+    update();
+  });
+  chart.$legendUpdate=update; update();
+}
+
+// replay: ▶ draws every visible line day by day (≈6 s); the slider scrubs to any date
+function wireReplay(chart,labels){
+  const full=chart.data.datasets.map(ds=>ds.data.slice()), last=labels.length-1;
+  chart.data.datasets.forEach((ds,j)=>{ ds.$full=full[j]; });
+  const btn=$('#ser-play'), scrub=$('#ser-scrub'), dateEl=$('#ser-date');
+  if(!btn||last<1) return;
+  // y-axis always spans the FULL visible series (suggested bounds keep ticks round), so the frame,
+  // axis labels and plot area stay put while lines draw in — only the lines and end labels move
+  const fitY=()=>{
+    let mn=Infinity,mx=-Infinity;
+    full.forEach((arr,j)=>{ if(chart.isDatasetVisible(j)) arr.forEach(v=>{ if(v!=null){ mn=Math.min(mn,v); mx=Math.max(mx,v); } }); });
+    const y=chart.options.scales.y;
+    y.suggestedMin=mn<=mx?mn:undefined; y.suggestedMax=mn<=mx?mx:undefined;
+  };
+  fitY(); chart.update('none');
+  chart.$relock=()=>{ fitY(); chart.update('none'); };   // legend toggle changes which lines set the range
+  const showUpTo=k=>{
+    chart.data.datasets.forEach((ds,j)=>{ ds.data=full[j].map((v,t)=>t<=k?v:null); });
+    scrub.value=k; dateEl.textContent=fmtDateLong(labels[k]);
+    chart.update('none');
+    chart.$legendUpdate?.();
+  };
+  const stop=()=>{ clearInterval(S.playTimer); S.playTimer=null; btn.textContent='▶'; btn.classList.remove('on'); };
+  btn.onclick=()=>{
+    if(S.playTimer){ stop(); return; }
+    let k=(+scrub.value>=last)?0:+scrub.value;   // from the start, or resume where paused
+    btn.textContent='❚❚'; btn.classList.add('on');
+    S.playTimer=setInterval(()=>{ showUpTo(k); if(++k>last) stop(); }, Math.max(25,Math.round(6000/labels.length)));
+  };
+  scrub.oninput=()=>{ if(S.playTimer) stop(); showUpTo(+scrub.value); };
 }
 
 /* ============================ PRE vs FINAL ============================ */
 async function renderPvf(c){
   c.innerHTML='<div class="card"><div class="loading">Loading pre-vs-final snapshot…</div></div>';
   const p=await ensurePvf();
-  if(!p||p.error){
-    c.innerHTML='<div class="card"><div class="card-hd"><div class="t">Pre vs Final</div></div>'+
-      '<div class="empty">No pre-vs-final snapshot yet. It is captured automatically the next time a <b>Final&nbsp;OI</b> workbook is published — the prior figures become “Pre”, the new ones “Final”.</div></div>';
+  // compare only matching days: current upload must be Final, and the Pre snapshot must be for that same date
+  const cur=S.meta||{}, preDate=(p&&!p.error)?p.pre?.snapshot_date:null;
+  const pvfMkts=S.order.filter(m=>/sr3|ff|treas|tnote|tbond|ultra/i.test(m)).map(m=>m==='treasuries'?'Treasuries':m).join(' · ');
+  const notice=(title,body)=>'<div class="card"><div class="card-hd"><div class="t">Pre vs Final Open Interest'+
+    '<small>USA only · settlement revision</small></div></div><div class="pvf-wait"><div class="w1">'+title+'</div><div class="w2">'+body+'</div></div></div>';
+  if(!cur.isFinal){
+    c.innerHTML=notice('Waiting for Final OI for <b>'+esc(cur.latest||'—')+'</b>',
+      '<b>Pre OI</b> for '+esc(cur.latest||'—')+' is live — published <b>'+esc(fmtUpdated(cur.updated))+'</b> · '+esc(pvfMkts)+'.<br>'+
+      'The comparison appears here automatically once the <b>Final OI</b> file for the same date is published '+
+      '<span class="w3">(usually after 9:00 PM IST · ~11:30 AM ET)</span>.');
+    return;
+  }
+  if(preDate!==cur.latest){
+    c.innerHTML=notice('No matching Pre OI for <b>'+esc(cur.latest||'—')+'</b>',
+      '<b>Final OI</b> for '+esc(cur.latest||'—')+' is published, but '+
+      (preDate?'the last Pre snapshot is for <b>'+esc(preDate)+'</b>':'no Pre snapshot was captured')+', so there is nothing to compare.<br>'+
+      'Publish the <b>Pre OI</b> file for a date first, then its <b>Final OI</b> file.');
     return;
   }
   const order=p.market_order||[];
   const pre=p.pre?.markets||{}, fin=p.final?.markets||{};
   let h='<div class="card"><div class="card-hd"><div class="t">Pre vs Final Open Interest'+
-        '<small>rates markets · settlement revision</small></div>'+
-        '<div class="pvf-actions"><button class="btn btn-ghost" id="pvf-copy">⧉ Copy</button>'+
-        '<button class="btn btn-ghost" id="pvf-png">⭳ PNG</button></div></div>';
-  h+='<div class="tbl-wrap"><table class="grid" id="pvf-tbl"><thead><tr>'+
-     '<th class="lbl">Contract</th><th>Pre OI</th><th>Final OI</th><th>Δ</th><th>Δ&nbsp;%</th></tr></thead><tbody>';
+        '<small>USA only · settlement revision</small></div>'+
+        '<div class="pvf-actions"><button class="btn btn-ghost" id="pvf-png" title="Copy the table as an image">⧉ Copy PNG</button></div></div>';
+  // one table per market, side by side; one sort shared by all of them (Contract restores curve order)
+  const sortTh=(key,label)=>{ const on=!!S.pvfSort&&S.pvfSort.key===key;
+    return '<th class="sortable'+(on?' sorted':'')+'" data-psort="'+key+'">'+label+'<span class="arw">'+(on?(S.pvfSort.dir==='asc'?'▲':'▼'):'')+'</span></th>'; };
+  h+='<div class="pvf-cols">';
   order.forEach(m=>{
-    h+='<tr class="pvf-market-hd"><td colspan="5">'+esc(MARKET_LABELS[m]||m)+'</td></tr>';
-    const ks=new Set([...Object.keys(pre[m]||{}),...Object.keys(fin[m]||{})]);
-    [...ks].forEach(ct=>{
-      const a=pre[m]?.[ct], b=fin[m]?.[ct];
-      const d=(a!==null&&a!==undefined&&b!==null&&b!==undefined)?b-a:null;
-      const pc=pct(b,a);
-      const cls=d>0?'up':(d<0?'down':'flat');
-      h+='<tr><td class="lbl">'+esc(ct)+'</td><td class="num">'+fmtOI(a)+'</td><td class="num">'+fmtOI(b)+'</td>'+
-         '<td class="num '+cls+'">'+(d===null?'·':fmtSigned(d))+'</td>'+
-         '<td class="num '+cls+'">'+(pc===null?'·':(pc>0?'+':'')+pc.toFixed(1)+'%')+'</td></tr>';
-    });
+    h+='<div class="pvf-col"><table class="grid"><thead>'+
+       '<tr><th class="grp pvf-mkt" colspan="5">'+esc(MARKET_LABELS[m]||m)+'</th></tr>'+
+       '<tr><th class="lbl sortable" data-psort="" title="Curve order">Contract<span class="arw"></span></th>'+
+       sortTh('pre','Pre OI')+sortTh('final','Final OI')+sortTh('delta','Δ')+sortTh('pct','Δ&nbsp;%')+'</tr></thead><tbody>';
+    const rows=pvfRows(m,pre,fin), t=pvfTotal(rows);
+    const row=(cls,lbl,r)=>{ const dc=r.d>0?'up':(r.d<0?'down':'flat');
+      return '<tr'+(cls?' class="'+cls+'"':'')+'><td class="lbl">'+esc(lbl)+'</td>'+
+        '<td class="num">'+fmtOI(r.a)+'</td><td class="num">'+fmtOI(r.b)+'</td>'+
+        '<td class="num '+dc+'">'+fmtSigned(r.d)+'</td><td class="num '+dc+'">'+(r.pc===null?'·':fmtPctNum(r.pc))+'</td></tr>'; };
+    rows.forEach(r=>{ h+=row('',r.ct,r); });
+    h+=row('total','TOTAL',t);   // net sum, always last whatever the sort
+    h+='</tbody></table></div>';
   });
-  h+='</tbody></table></div>';
+  h+='</div>';
   h+='<div class="pvf-note">Pre snapshot: <b>'+esc(p.pre?.snapshot_date||'—')+'</b> · Final snapshot: <b>'+esc(p.final?.snapshot_date||'—')+'</b>. '+
-     'Positive Δ = OI added between the pre and final prints.</div></div>';
+     'Positive Δ = OI added between the pre and final prints · click a column header to sort ▼/▲ · <b>Contract</b> resets.</div></div>';
   c.innerHTML=h;
+  c.querySelectorAll('th[data-psort]').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.psort, cur=S.pvfSort;   // cycle: descending → ascending → curve order
+    if(!k || (cur && cur.key===k && cur.dir==='asc')) S.pvfSort=null;
+    else S.pvfSort={key:k, dir:(cur && cur.key===k)?'asc':'desc'};
+    render();
+  });
   $('#pvf-png').onclick=()=>exportPvfPng(p,order,pre,fin);
-  $('#pvf-copy').onclick=()=>copyPvf(order,pre,fin);
 }
 
-function copyPvf(order,pre,fin){
-  let lines=['Contract\tPre\tFinal\tDelta\tDelta%'];
-  order.forEach(m=>{
-    lines.push(m);
-    const ks=new Set([...Object.keys(pre[m]||{}),...Object.keys(fin[m]||{})]);
-    [...ks].forEach(ct=>{
-      const a=pre[m]?.[ct],b=fin[m]?.[ct];const d=(a!=null&&b!=null)?b-a:'';const pc=pct(b,a);
-      lines.push([ct,a??'',b??'',d,pc===null?'':pc.toFixed(1)+'%'].join('\t'));
-    });
+// rows for one market: curve order from the live contract list (snapshot keys arrive alphabetical), then the shared sort
+function pvfRows(m,pre,fin){
+  const live=S.markets[m]?.contracts||[], seen=new Set(live), names=[...live];
+  [...Object.keys(pre[m]||{}),...Object.keys(fin[m]||{})].forEach(ct=>{ if(!seen.has(ct)){ seen.add(ct); names.push(ct); } });
+  const has=ct=>(pre[m]&&ct in pre[m])||(fin[m]&&ct in fin[m]);
+  const rows=names.filter(has).map((ct,ri)=>{
+    const a=pre[m]?.[ct]??null, b=fin[m]?.[ct]??null;
+    return {ct,ri,a,b,d:(a!=null&&b!=null)?b-a:null,pc:pct(b,a)};
   });
-  navigator.clipboard?.writeText(lines.join('\n')).then(()=>flash('#pvf-copy','✓ Copied'));
+  const s=S.pvfSort;
+  if(s){
+    const f={pre:'a',final:'b',delta:'d',pct:'pc'}[s.key], sgn=s.dir==='asc'?1:-1;
+    rows.sort((x,y)=>{ const va=x[f],vb=y[f];
+      if(va==null) return vb==null?x.ri-y.ri:1;
+      if(vb==null) return -1;
+      return (va-vb)*sgn||x.ri-y.ri; });
+  }
+  return rows;
 }
+
+// a market's TOTAL row: net sums; Δ and Δ % use only contracts present in both prints
+function pvfTotal(rows){
+  let a=null,b=null,d=null,base=0;
+  rows.forEach(r=>{
+    if(r.a!=null) a=(a||0)+r.a;
+    if(r.b!=null) b=(b||0)+r.b;
+    if(r.d!=null){ d=(d||0)+r.d; base+=r.a; }
+  });
+  return {a,b,d,pc:(d!=null&&base!==0)?d/Math.abs(base)*100:null};
+}
+
 function flash(sel,txt){const b=$(sel);const o=b.textContent;b.textContent=txt;setTimeout(()=>b.textContent=o,1400);}
 
+// PNG mirrors the page: markets side by side, same row order (curve or current sort)
 function exportPvfPng(p,order,pre,fin){
-  const rowH=22, padX=18, headH=92, W=560;
-  let rows=0; order.forEach(m=>{rows+=1+new Set([...Object.keys(pre[m]||{}),...Object.keys(fin[m]||{})]).size;});
-  const H=headH+rows*rowH+40, sc=2;
+  const cols=order.map(m=>({m,rows:pvfRows(m,pre,fin)}));
+  const padX=16, gap=16, colW=420, titleH=58, mktH=26, thH=24, rowH=22, sc=2;
+  const W=padX*2+cols.length*colW+(cols.length-1)*gap;
+  const H=titleH+14+mktH+thH+(Math.max(0,...cols.map(c=>c.rows.length))+1)*rowH+18;   // +1: TOTAL row
   const cv=document.createElement('canvas'); cv.width=W*sc; cv.height=H*sc;
   const x=cv.getContext('2d'); x.scale(sc,sc);
   x.fillStyle='#ffffff'; x.fillRect(0,0,W,H);
-  // header
-  x.fillStyle='#1b2c47'; x.fillRect(0,0,W,58);
+  x.fillStyle='#1b2c47'; x.fillRect(0,0,W,titleH);
   x.fillStyle='#eaf1fb'; x.font='800 18px Inter,Segoe UI,system-ui,sans-serif';
   x.fillText('OI PROFILE — PRE vs FINAL',padX,26);
+  const s=S.pvfSort, sortTxt=s?'   ·   sorted by '+{pre:'Pre OI',final:'Final OI',delta:'Δ',pct:'Δ %'}[s.key]+(s.dir==='asc'?' ▲':' ▼'):'';
   x.fillStyle='#8fb0d8'; x.font='italic 11px Inter,Segoe UI,system-ui,sans-serif';
-  x.fillText('Pre '+(p.pre?.snapshot_date||'—')+'   ·   Final '+(p.final?.snapshot_date||'—'),padX,44);
-  // col header
-  const cx=[padX,260,350,440,510];
-  x.fillStyle='#41597f'; x.fillRect(0,58,W,26);
-  x.fillStyle='#eaf1fb'; x.font='700 10.5px Inter,Segoe UI,system-ui,sans-serif';
-  x.fillText('CONTRACT',cx[0],75); ['PRE','FINAL','Δ','Δ%'].forEach((t,i)=>{x.textAlign='right';x.fillText(t,cx[i+1]+34,75);x.textAlign='left';});
-  let y=headH;
-  order.forEach(m=>{
-    x.fillStyle='#eef1f6'; x.fillRect(0,y-14,W,rowH);
-    x.fillStyle='#3f577c'; x.font='800 10px Inter,sans-serif';
-    x.fillText((MARKET_LABELS[m]||m).toUpperCase(),padX,y);
-    y+=rowH;
-    const ks=new Set([...Object.keys(pre[m]||{}),...Object.keys(fin[m]||{})]);
-    let alt=false;
-    [...ks].forEach(ct=>{
-      if(alt){x.fillStyle='#f4f6fa';x.fillRect(0,y-14,W,rowH);} alt=!alt;
-      const a=pre[m]?.[ct],b=fin[m]?.[ct];const d=(a!=null&&b!=null)?b-a:null;const pc=pct(b,a);
-      x.fillStyle='#17233b'; x.font='700 11px Inter,sans-serif'; x.fillText(ct,cx[0],y);
-      x.font='11px "SF Mono",Roboto Mono,monospace'; x.textAlign='right';
-      x.fillStyle='#43536e'; x.fillText(fmtOI(a),cx[1]+34,y); x.fillText(fmtOI(b),cx[2]+34,y);
-      x.fillStyle=d>0?'#1f9d6b':(d<0?'#cf3f38':'#7b8aa1');
-      x.fillText(d===null?'·':fmtSigned(d),cx[3]+34,y);
-      x.fillText(pc===null?'·':(pc>0?'+':'')+pc.toFixed(1)+'%',cx[4]+34,y);
-      x.textAlign='left';
-      y+=rowH;
+  x.fillText('Pre '+(p.pre?.snapshot_date||'—')+'   ·   Final '+(p.final?.snapshot_date||'—')+sortTxt,padX,44);
+  const right=[190,280,360,410];   // right edges of Pre, Final, Δ, Δ% within a column
+  cols.forEach((col,ci)=>{
+    const x0=padX+ci*(colW+gap); let y=titleH+14;
+    x.fillStyle='#41597f'; x.fillRect(x0,y,colW,mktH);
+    x.fillStyle='#eaf1fb'; x.font='800 10.5px Inter,Segoe UI,system-ui,sans-serif'; x.textAlign='left';
+    x.fillText((MARKET_LABELS[col.m]||col.m).toUpperCase(),x0+10,y+17); y+=mktH;
+    x.fillStyle='#e9edf3'; x.fillRect(x0,y,colW,thH);
+    x.fillStyle='#43536e'; x.font='700 10px Inter,Segoe UI,system-ui,sans-serif';
+    x.fillText('CONTRACT',x0+10,y+16); x.textAlign='right';
+    ['PRE','FINAL','Δ','Δ %'].forEach((t,i)=>x.fillText(t,x0+right[i],y+16)); x.textAlign='left'; y+=thH;
+    col.rows.forEach((r,i)=>{
+      if(i%2){ x.fillStyle='#f4f6fa'; x.fillRect(x0,y,colW,rowH); }
+      x.fillStyle='#17233b'; x.font='700 11px Inter,sans-serif'; x.fillText(shortName(r.ct),x0+10,y+15);
+      x.font='11px "SF Mono",Roboto Mono,Consolas,monospace'; x.textAlign='right';
+      x.fillStyle='#43536e'; x.fillText(fmtOI(r.a),x0+right[0],y+15); x.fillText(fmtOI(r.b),x0+right[1],y+15);
+      x.fillStyle=r.d>0?'#1f9d6b':(r.d<0?'#cf3f38':'#7b8aa1');
+      x.fillText(fmtSigned(r.d),x0+right[2],y+15);
+      x.fillText(r.pc===null?'·':fmtPctNum(r.pc),x0+right[3],y+15);
+      x.textAlign='left'; y+=rowH;
     });
+    const t=pvfTotal(col.rows);   // TOTAL row
+    x.fillStyle='#e4e9f1'; x.fillRect(x0,y,colW,rowH);
+    x.strokeStyle='#9fb0c8'; x.lineWidth=2; x.beginPath(); x.moveTo(x0,y+1); x.lineTo(x0+colW,y+1); x.stroke();
+    x.fillStyle='#1b2c47'; x.font='800 11px Inter,sans-serif'; x.fillText('TOTAL',x0+10,y+15);
+    x.font='700 11px "SF Mono",Roboto Mono,Consolas,monospace'; x.textAlign='right';
+    x.fillText(fmtOI(t.a),x0+right[0],y+15); x.fillText(fmtOI(t.b),x0+right[1],y+15);
+    x.fillStyle=t.d>0?'#1f9d6b':(t.d<0?'#cf3f38':'#7b8aa1');
+    x.fillText(fmtSigned(t.d),x0+right[2],y+15);
+    x.fillText(t.pc===null?'·':fmtPctNum(t.pc),x0+right[3],y+15); x.textAlign='left';
+    x.strokeStyle='#d7dce5'; x.lineWidth=1; x.strokeRect(x0+.5,titleH+14.5,colW-1,mktH+thH+(col.rows.length+1)*rowH-1);
   });
-  cv.toBlob(bl=>{const u=URL.createObjectURL(bl);const a=document.createElement('a');
+  // copy the image to the clipboard (paste straight into chat / email); download only if the browser refuses
+  const blobP=new Promise(res=>cv.toBlob(res,'image/png'));
+  const download=()=>blobP.then(bl=>{const u=URL.createObjectURL(bl);const a=document.createElement('a');
     a.href=u;a.download='OI_pre_vs_final_'+(p.final?.snapshot_date||'').replace(/\//g,'-')+'.png';a.click();
     setTimeout(()=>URL.revokeObjectURL(u),2000); flash('#pvf-png','✓ Saved');});
+  if(navigator.clipboard?.write && typeof ClipboardItem!=='undefined'){
+    // ClipboardItem gets the promise directly, so the write stays inside the click (required by Safari)
+    navigator.clipboard.write([new ClipboardItem({'image/png':blobP})])
+      .then(()=>flash('#pvf-png','✓ Copied'))
+      .catch(download);
+  } else download();
 }
 
 /* ============================ TOOLTIPS ============================ */
@@ -637,6 +983,14 @@ function wireTips(){
 }
 
 /* ============================ BOOT ============================ */
+// restore market / view / sort from the URL
+const qs=new URLSearchParams(location.search);
+if(VIEWS.includes(qs.get('v'))) S.view=qs.get('v');
+S.active=qs.get('m');
+S.urlSort=paramToSort(qs.get('sort'));
+{ const m=/^(pre|final|delta|pct)-(asc|desc)$/i.exec(qs.get('sort')||'');
+  if(S.view==='pvf' && m) S.pvfSort={key:m[1].toLowerCase(), dir:m[2].toLowerCase()}; }
+document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('active',b.dataset.v===S.view));
 document.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>setView(b.dataset.v));
 $('#btn-refresh').onclick=()=>{S.pvf=null;fetchData();};
 fetchData();

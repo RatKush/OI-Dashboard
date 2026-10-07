@@ -8,7 +8,7 @@
 :root{
   --bg:#eceff4;--panel:#fff;--ink:#17233b;--ink-soft:#43536e;--muted:#7b8aa1;
   --navy:#1b2c47;--navy2:#26436c;--slate:#3f577c;--line:#d7dce5;--row-alt:#f4f6fa;
-  --pos:#1f9d6b;--neg:#cf3f38;--accent:#2f6fb0;
+  --pos:#1f9d6b;--neg:#cf3f38;--amber:#b7791f;--accent:#2f6fb0;
   --sans:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
   --mono:"SF Mono",ui-monospace,"Roboto Mono",Menlo,Consolas,monospace;
 }
@@ -27,11 +27,31 @@ main{max-width:960px;margin:0 auto;padding:24px 20px 60px;display:grid;gap:20px}
 .card-hd{background:linear-gradient(180deg,var(--slate),#374d70);color:#fff;padding:11px 18px;
   font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
 .card-bd{padding:20px}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);
+
+/* live status */
+.live{display:flex;gap:18px;align-items:stretch;flex-wrap:wrap}
+.badge{display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:150px;
+  border-radius:10px;padding:14px 18px;border:1px solid}
+.badge .b{font-size:28px;font-weight:900;letter-spacing:.14em}
+.badge .s{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-top:2px}
+.badge.pre{background:#fff6e5;border-color:#f1d49a;color:var(--amber)}
+.badge.final{background:#eaf6ef;border-color:#bfe6cf;color:#1f7d55}
+.grid2{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);
   border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .stat{background:#fff;padding:14px 16px}
 .stat .k{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .stat .v{font-size:20px;font-weight:800;color:var(--navy);margin-top:4px;font-family:var(--mono)}
+.stat .v.sm{font-size:14px;font-family:var(--sans)}
+.pvf{margin-top:16px;display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:8px;
+  border:1px solid var(--line);background:#fafbfd;font-weight:600;color:var(--ink-soft)}
+.pvf i{width:9px;height:9px;border-radius:50%;flex:none}
+.pvf.waiting i{background:#f0b429}.pvf.comparing i{background:var(--pos)}.pvf.mismatch i,.pvf.none i{background:var(--neg)}
+.pvf .k{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-right:4px}
+.prev{margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:11px 14px;border-radius:8px;background:#f4f6fa;color:var(--ink-soft);font-size:12.5px}
+.prev b{color:var(--ink)}
+
+/* upload */
 .drop{border:2px dashed #b9c4d4;border-radius:10px;padding:26px;text-align:center;
   background:#fafbfd;transition:.15s;cursor:pointer}
 .drop:hover,.drop.over{border-color:var(--accent);background:#eef4fb}
@@ -39,13 +59,13 @@ main{max-width:960px;margin:0 auto;padding:24px 20px 60px;display:grid;gap:20px}
 .drop .big{font-size:15px;font-weight:700;color:var(--ink)}
 .drop .hint{font-size:11.5px;color:var(--muted)}
 input[type=file]{display:none}
-.rowline{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:18px}
-label.chk{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-soft);font-weight:600;cursor:pointer}
-.btn{border:0;border-radius:8px;cursor:pointer;font-family:var(--sans);font-weight:700;
-  font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;padding:11px 18px;transition:.15s}
-.btn-primary{background:var(--navy);color:#fff}.btn-primary:hover{background:var(--navy2)}
-.btn-primary:disabled{background:#aab6c8;cursor:not-allowed}
-.btn-ghost{background:#eef2f8;border:1px solid #c3ccda;color:var(--ink-soft)}.btn-ghost:hover{background:#e2e9f3}
+.quick{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;
+  border:1px solid #c9dbf0;border-radius:10px;background:#eef4fb}
+.quick[hidden]{display:none}
+.btn-reload{background:var(--accent);color:#fff}.btn-reload:hover:not(:disabled){background:#265d96}
+.quick .q-meta{color:var(--ink-soft);font-size:12px}
+.quick a{margin-left:auto;color:var(--accent);font-size:12px;font-weight:700;text-decoration:none}
+.quick a:hover{text-decoration:underline}
 .preview{margin-top:18px;border:1px solid var(--line);border-radius:8px;overflow:hidden;display:none}
 .preview.show{display:block}
 .preview .ph{background:#eef1f6;padding:8px 14px;font-size:11px;font-weight:800;letter-spacing:.1em;
@@ -54,12 +74,20 @@ label.chk{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--i
 .preview td{padding:7px 14px;border-top:1px solid var(--line)}
 .preview td:first-child{color:var(--muted);font-weight:600;width:180px}
 .preview td:last-child{font-family:var(--mono);color:var(--ink);font-weight:700}
+.actions{display:none;gap:12px;flex-wrap:wrap;margin-top:18px}
+.actions.show{display:flex}
+.btn{border:0;border-radius:8px;cursor:pointer;font-family:var(--sans);font-weight:700;
+  font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;padding:12px 18px;transition:.15s}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-pre{background:var(--navy);color:#fff}.btn-pre:hover:not(:disabled){background:var(--navy2)}
+.btn-final{background:#1f7d55;color:#fff}.btn-final:hover:not(:disabled){background:#1a6a48}
+.btn-ghost{background:#fff;border:1px solid #c3ccda;color:var(--ink-soft);padding:8px 14px}
+.btn-ghost:hover:not(:disabled){background:#e2e9f3}
+.btn .d{font-family:var(--mono);font-weight:700;letter-spacing:0;margin-left:6px;opacity:.85}
 .msg{margin-top:16px;padding:11px 14px;border-radius:8px;font-size:12.5px;font-weight:600;display:none}
+.msg.info{display:block;background:#eef4fb;border:1px solid #c9dbf0;color:var(--accent)}
 .msg.ok{display:block;background:#eaf6ef;border:1px solid #bfe6cf;color:#1f7d55}
 .msg.err{display:block;background:#fdeeec;border:1px solid #f3c7c2;color:var(--neg)}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-.chip{background:#e7ecf3;color:var(--ink-soft);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;
-  letter-spacing:.04em}
 </style>
 </head>
 <body>
@@ -70,22 +98,31 @@ label.chk{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--i
 <main>
 
   <div class="card">
-    <div class="card-hd">Currently published</div>
+    <div class="card-hd">Live now</div>
     <div class="card-bd">
       {% if meta %}
-      <div class="grid2">
-        <div class="stat"><div class="k">Latest date</div><div class="v">{{ meta.latest_date }}</div></div>
-        <div class="stat"><div class="k">Markets</div><div class="v">{{ meta.markets_count }}</div></div>
-        <div class="stat"><div class="k">Contracts</div><div class="v">{{ meta.contracts_count }}</div></div>
-        <div class="stat"><div class="k">Updated</div><div class="v" style="font-size:13px">{{ meta.updated_at }}</div></div>
+      <div class="live">
+        <div class="badge {{ 'final' if meta.is_final else 'pre' }}">
+          <div class="b">{{ 'FINAL' if meta.is_final else 'PRE' }}</div>
+          <div class="s">OI · {{ meta.latest_date }}</div>
+        </div>
+        <div class="grid2">
+          <div class="stat"><div class="k">Latest date</div><div class="v">{{ meta.latest_date }}</div></div>
+          <div class="stat"><div class="k">Markets</div><div class="v">{{ meta.markets_count }}</div></div>
+          <div class="stat"><div class="k">Contracts</div><div class="v">{{ meta.contracts_count }}</div></div>
+          <div class="stat"><div class="k">Published</div><div class="v sm" data-iso="{{ meta.updated_at }}">{{ meta.updated_at }}</div></div>
+        </div>
       </div>
       {% else %}
-      <p style="color:var(--muted)">Nothing published yet — upload a workbook below to go live.</p>
+      <p style="color:var(--muted)">Nothing published yet — drop a workbook below to go live.</p>
       {% endif %}
-      {% if pvf_meta and pvf_meta.markets %}
-      <div style="margin-top:16px">
-        <div class="k" style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700">Pre-vs-Final snapshot · {{ pvf_meta.snapshot_date }}</div>
-        <div class="chips">{% for m in pvf_meta.markets %}<span class="chip">{{ m }}</span>{% endfor %}</div>
+      <div class="pvf {{ pvf_state.state }}"><i></i><span class="k">Pre vs Final</span>{{ pvf_state.text }}</div>
+      {% if prev_meta %}
+      <div class="prev">
+        <span>Previous version: <b>{{ 'FINAL' if prev_meta.is_final else 'PRE' }} · {{ prev_meta.latest_date }}</b>
+          · published <span data-iso="{{ prev_meta.updated_at }}">{{ prev_meta.updated_at }}</span></span>
+        <button class="btn btn-ghost" id="btn-restore"
+          data-label="{{ 'FINAL' if prev_meta.is_final else 'PRE' }} · {{ prev_meta.latest_date }}">↶ Restore previous</button>
       </div>
       {% endif %}
     </div>
@@ -94,16 +131,22 @@ label.chk{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--i
   <div class="card">
     <div class="card-hd">Upload &amp; publish workbook</div>
     <div class="card-bd">
+      <div class="quick" id="quick" hidden>
+        <button class="btn btn-reload" id="btn-reload">↻ Load latest <span id="q-name"></span></button>
+        <span class="q-meta" id="q-meta">reads the version currently saved on this PC — save in Excel first</span>
+        <a href="#" id="q-forget">change file</a>
+      </div>
       <div class="drop" id="drop">
-        <p class="big">Drop an .xlsx / .xls workbook here</p>
-        <p class="hint">or click to browse · the file is parsed and previewed before it goes live</p>
+        <p class="big">Drop an .xlsx workbook here</p>
+        <p class="hint" id="drop-hint">or click to browse · it is checked straight away, then you choose Pre or Final</p>
         <p id="fname" style="color:var(--accent);font-weight:700"></p>
       </div>
       <input type="file" id="file" accept=".xlsx,.xls">
 
       <div class="preview" id="preview">
-        <div class="ph">Parsed preview</div>
+        <div class="ph">File contents</div>
         <table>
+          <tr><td>File saved</td><td id="pv-saved">—</td></tr>
           <tr><td>Latest date</td><td id="pv-date">—</td></tr>
           <tr><td>Markets</td><td id="pv-mkts">—</td></tr>
           <tr><td>Contracts</td><td id="pv-contracts">—</td></tr>
@@ -111,12 +154,9 @@ label.chk{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--i
         </table>
       </div>
 
-      <div class="rowline">
-        <label class="chk"><input type="checkbox" id="isfinal"> Publish as <b>Final OI</b> (snapshots current figures as “Pre”)</label>
-      </div>
-      <div class="rowline">
-        <button class="btn btn-ghost" id="btn-parse" disabled>Parse / preview</button>
-        <button class="btn btn-primary" id="btn-publish" disabled>Publish live →</button>
+      <div class="actions" id="actions">
+        <button class="btn btn-pre" id="btn-pre">Publish as Pre<span class="d" id="d-pre"></span></button>
+        <button class="btn btn-final" id="btn-final">Publish as Final<span class="d" id="d-final"></span></button>
       </div>
       <div class="msg" id="msg"></div>
     </div>
@@ -127,47 +167,133 @@ label.chk{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--i
 const $=s=>document.querySelector(s);
 let tempFile=null;
 const drop=$('#drop'),file=$('#file');
-drop.onclick=()=>file.click();
+
+// readable local times for the ISO timestamps rendered by the server
+document.querySelectorAll('[data-iso]').forEach(el=>{
+  const d=new Date(el.dataset.iso);
+  if(!isNaN(d)) el.textContent=d.toLocaleString(undefined,{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+});
+
+function msg(t,cls){const m=$('#msg');m.className='msg'+(cls?(' '+cls):'');m.textContent=t;}
+const pubBtns=()=>[$('#btn-pre'),$('#btn-final')];
+
+const fmtTime=ms=>new Date(ms).toLocaleString(undefined,{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+
+/* ── remembered workbook (Chrome / Edge File System Access API) ───────────────────────────────
+   The first pick/drop stores a handle to the file in this browser (IndexedDB, this site only).
+   "Load latest" then re-reads whatever is currently saved on disk — one click, no browsing.
+   Browsers without the API (Firefox, Safari) just keep the normal drop / browse flow. */
+const FS=('showOpenFilePicker' in window);
+const XLSX_TYPES=[{description:'Excel workbook',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}];
+function idb(mode,fn){
+  return new Promise((res,rej)=>{
+    const o=indexedDB.open('oi-admin',1);
+    o.onupgradeneeded=()=>o.result.createObjectStore('h');
+    o.onerror=()=>rej(o.error);
+    o.onsuccess=()=>{ const tx=o.result.transaction('h',mode), q=fn(tx.objectStore('h'));
+      tx.oncomplete=()=>res(q&&q.result); tx.onerror=()=>rej(tx.error); };
+  });
+}
+const getHandle=()=>idb('readonly',s=>s.get('workbook')).catch(()=>null);
+const setHandle=h=>idb('readwrite',s=>s.put(h,'workbook')).catch(()=>{});
+const forgetHandle=()=>idb('readwrite',s=>s.delete('workbook')).catch(()=>{});
+
+async function showQuick(){
+  const h=FS?await getHandle():null;
+  $('#quick').hidden=!h;
+  if(!h) return;
+  $('#q-name').textContent=h.name;
+  // if permission is still granted (same session) show when the file on disk was last saved
+  try{ if(await h.queryPermission({mode:'read'})==='granted'){
+    const f=await h.getFile(); $('#q-meta').textContent='file on this PC last saved '+fmtTime(f.lastModified); } }catch(e){}
+}
+async function remember(h){ if(h&&h.kind==='file'){ await setHandle(h); showQuick(); } }
+
+$('#btn-reload').onclick=async()=>{
+  const h=await getHandle(); if(!h){ showQuick(); return; }
+  try{
+    if(await h.queryPermission({mode:'read'})!=='granted' && await h.requestPermission({mode:'read'})!=='granted'){
+      msg('Permission to read '+h.name+' was not given.','err'); return; }
+    check(await h.getFile());
+  }catch(e){
+    msg('Could not read '+h.name+' — it may have been moved or renamed. Use "change file" to pick it again.','err');
+  }
+};
+$('#q-forget').onclick=async ev=>{ ev.preventDefault(); await forgetHandle(); showQuick(); pick(); };
+
+async function pick(){
+  if(!FS){ file.click(); return; }
+  try{ const [h]=await window.showOpenFilePicker({types:XLSX_TYPES,multiple:false}); await remember(h); check(await h.getFile()); }
+  catch(e){ if(e.name!=='AbortError') msg('Could not open the file: '+e.message,'err'); }
+}
+drop.onclick=pick;
 ['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over');}));
 ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over');}));
-drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files.length){file.files=ev.dataTransfer.files;onPick();}});
-file.onchange=onPick;
-function onPick(){
-  if(!file.files.length)return;
-  $('#fname').textContent='📄 '+file.files[0].name;
-  $('#btn-parse').disabled=false; $('#btn-publish').disabled=true;
-  $('#preview').classList.remove('show'); tempFile=null; msg('');
-}
-function msg(t,cls){const m=$('#msg');m.className='msg'+(cls?(' '+cls):'');m.textContent=t;}
-$('#btn-parse').onclick=async()=>{
-  if(!file.files.length)return;
-  msg('Parsing…'); $('#btn-parse').disabled=true;
-  const fd=new FormData(); fd.append('file',file.files[0]);
+drop.addEventListener('drop',async ev=>{
+  const it=ev.dataTransfer.items?.[0], f=ev.dataTransfer.files[0];
+  if(!f) return;
+  // grab the handle synchronously (the drop data expires after this tick), then remember it
+  const hp=(FS && it && it.getAsFileSystemHandle)?it.getAsFileSystemHandle():null;
+  check(f);
+  if(hp) remember(await hp.catch(()=>null));
+});
+file.onchange=()=>{ if(file.files.length) check(file.files[0]); };
+if(FS) $('#drop-hint').textContent='or click to browse · Chrome / Edge remembers the file for one-click “Load latest” next time';
+showQuick();
+
+// check the file as soon as it is picked — no separate parse step
+async function check(f){
+  if(!f) return;
+  tempFile=null;
+  $('#fname').textContent='📄 '+f.name;
+  $('#preview').classList.remove('show'); $('#actions').classList.remove('show');
+  msg('Checking file…','info');
+  $('#pv-saved').textContent=f.lastModified?fmtTime(f.lastModified):'—';
+  const fd=new FormData(); fd.append('file',f);
   try{
     const r=await fetch('/admin/upload',{method:'POST',body:fd});
     const d=await r.json();
-    if(!r.ok){msg(d.error||'Upload failed','err');$('#btn-parse').disabled=false;return;}
+    if(!r.ok){ msg(d.error||'Could not read this file','err'); return; }
     tempFile=d.temp_file;
-    $('#pv-date').textContent=d.preview.latest_date;
-    $('#pv-mkts').textContent=d.preview.markets_count;
-    $('#pv-contracts').textContent=d.preview.contracts_count;
-    $('#pv-list').textContent=(d.preview.markets||[]).join(', ');
-    $('#preview').classList.add('show');
-    $('#btn-publish').disabled=false; $('#btn-parse').disabled=false;
-    msg('Parsed OK — review, then publish.','ok');
-  }catch(e){msg('Upload error: '+e,'err');$('#btn-parse').disabled=false;}
-};
-$('#btn-publish').onclick=async()=>{
-  if(!tempFile)return;
-  $('#btn-publish').disabled=true; msg('Publishing…');
+    const p=d.preview;
+    $('#pv-date').textContent=p.latest_date;
+    $('#pv-mkts').textContent=p.markets_count;
+    $('#pv-contracts').textContent=p.contracts_count;
+    $('#pv-list').textContent=(p.markets||[]).join(', ');
+    $('#d-pre').textContent='· '+p.latest_date; $('#d-final').textContent='· '+p.latest_date;
+    $('#preview').classList.add('show'); $('#actions').classList.add('show');
+    pubBtns().forEach(b=>b.disabled=false);
+    msg('');
+  }catch(e){ msg('Upload error: '+e,'err'); }
+}
+
+async function publish(isFinal){
+  if(!tempFile) return;
+  pubBtns().forEach(b=>b.disabled=true);
+  msg('Publishing as '+(isFinal?'Final':'Pre')+'…','info');
   try{
     const r=await fetch('/admin/publish',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({temp_file:tempFile,is_final:$('#isfinal').checked})});
+      body:JSON.stringify({temp_file:tempFile,is_final:isFinal})});
     const d=await r.json();
-    if(!r.ok){msg(d.error||'Publish failed','err');$('#btn-publish').disabled=false;return;}
-    msg('✓ Published'+(d.is_final?' as Final OI':'')+' at '+d.updated_at+'. Reloading…','ok');
-    setTimeout(()=>location.reload(),1300);
-  }catch(e){msg('Publish error: '+e,'err');$('#btn-publish').disabled=false;}
+    if(!r.ok){ msg(d.error||'Publish failed','err'); pubBtns().forEach(b=>b.disabled=false); return; }
+    msg('✓ Live as '+(d.is_final?'Final':'Pre')+' OI. Reloading…','ok');
+    setTimeout(()=>location.reload(),1100);
+  }catch(e){ msg('Publish error: '+e,'err'); pubBtns().forEach(b=>b.disabled=false); }
+}
+$('#btn-pre').onclick=()=>publish(false);
+$('#btn-final').onclick=()=>publish(true);
+
+const rb=$('#btn-restore');
+if(rb) rb.onclick=async()=>{
+  if(!confirm('Restore the previous version ('+rb.dataset.label+') as live?\nThe current version is kept, so you can switch back.')) return;
+  rb.disabled=true;
+  try{
+    const r=await fetch('/admin/restore',{method:'POST'});
+    const d=await r.json();
+    if(!r.ok){ msg(d.error||'Restore failed','err'); rb.disabled=false; return; }
+    msg('✓ Restored '+(d.is_final?'Final':'Pre')+' · '+d.latest_date+'. Reloading…','ok');
+    setTimeout(()=>location.reload(),1000);
+  }catch(e){ msg('Restore error: '+e,'err'); rb.disabled=false; }
 };
 </script>
 </body>
