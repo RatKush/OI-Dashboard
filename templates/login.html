@@ -1,78 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OI Admin — Login</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · OI Profile</title>
 <style>
-:root {
-  --bg:#10161f; --panel:#181f2d; --panel2:#1c2438;
-  --border:#2e3f58; --border2:#3a5070;
-  --accent:#4db8ff; --accent2:#50e890;
-  --text:#ffffff; --dim:#7a95b8;
-}
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  background:var(--bg); color:var(--text);
-  font-family:'IBM Plex Sans', sans-serif;
-  min-height:100vh; display:flex; align-items:center; justify-content:center;
-  -webkit-font-smoothing:antialiased;
-}
-.card {
-  background:var(--panel); border:1px solid var(--border);
-  padding:44px 48px; width:360px;
-}
-.logo {
-  font-family:'IBM Plex Mono', monospace;
-  font-size:16px; font-weight:600; color:var(--accent);
-  letter-spacing:2px; margin-bottom:6px;
-}
-.subtitle {
-  font-family:'IBM Plex Mono', monospace;
-  font-size:10px; color:var(--dim); letter-spacing:1.5px;
-  margin-bottom:32px;
-}
-label {
-  display:block; font-family:'IBM Plex Mono', monospace;
-  font-size:10px; color:var(--dim); letter-spacing:1.5px;
-  margin-bottom:8px;
-}
-input[type=password] {
-  width:100%; background:var(--panel2); border:1px solid var(--border2);
-  color:var(--text); padding:10px 12px;
-  font-family:'IBM Plex Mono', monospace; font-size:13px;
-  outline:none; margin-bottom:20px; border-radius:2px;
-}
-input[type=password]:focus { border-color:var(--accent); }
-.btn {
-  width:100%; padding:10px; border:1px solid var(--accent);
-  background:transparent; color:var(--accent);
-  font-family:'IBM Plex Mono', monospace; font-weight:600;
-  font-size:13px; cursor:pointer; letter-spacing:1px;
-  transition:.15s; border-radius:2px;
-}
-.btn:hover { background:var(--accent); color:#0d1420; }
-.error {
-  background:rgba(180,30,50,.15); border:1px solid rgba(180,30,50,.4);
-  color:#ff8080; padding:8px 12px; margin-bottom:18px;
-  font-family:'IBM Plex Mono', monospace; font-size:11px;
-  border-radius:2px;
-}
+:root{--navy:#1b2c47;--navy2:#26436c;--ink:#17233b;--muted:#7b8aa1;--line:#d7dce5;
+  --sans:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#12203a 0%,#1b2c47 45%,#26436c 100%);
+  font-family:var(--sans);color:var(--ink);padding:20px}
+.card{background:#fff;width:100%;max-width:380px;border-radius:14px;overflow:hidden;
+  box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.head{background:linear-gradient(100deg,var(--navy),var(--navy2));color:#fff;padding:26px 28px 22px}
+.head h1{margin:0;font-size:19px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.head p{margin:6px 0 0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fb0d8}
+.body{padding:26px 28px 30px}
+label{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px}
+input[type=password]{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:8px;
+  font-family:var(--sans);font-size:14px;color:var(--ink);outline:none;transition:.15s}
+input[type=password]:focus{border-color:#2f6fb0;box-shadow:0 0 0 3px rgba(47,111,176,.15)}
+button{width:100%;margin-top:18px;padding:12px;border:0;border-radius:8px;cursor:pointer;
+  background:var(--navy);color:#fff;font-family:var(--sans);font-weight:700;font-size:13px;
+  letter-spacing:.1em;text-transform:uppercase;transition:.15s}
+button:hover{background:#26436c}
+.err{margin-top:16px;background:#fdeeec;border:1px solid #f3c7c2;color:#cf3f38;
+  padding:10px 12px;border-radius:8px;font-size:12.5px;font-weight:600}
+.foot{text-align:center;font-size:11px;color:var(--muted);margin-top:20px}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="logo">OI PROFILE</div>
-  <div class="subtitle">ADMIN ACCESS</div>
-  {% if error %}
-  <div class="error">{{ error }}</div>
-  {% endif %}
-  <form method="POST">
-    <label>PASSWORD</label>
-    <input type="password" name="password" autofocus autocomplete="current-password">
-    <button class="btn" type="submit">SIGN IN →</button>
-  </form>
-</div>
+  <div class="card">
+    <div class="head"><h1>OI&nbsp;Profile</h1><p>Admin&nbsp;Access</p></div>
+    <div class="body">
+      <form method="POST" action="{{ url_for('admin_login') }}">
+        <label for="pw">Password</label>
+        <input id="pw" type="password" name="password" autofocus autocomplete="current-password" placeholder="••••••••••">
+        <button type="submit">Sign in</button>
+        {% if error %}<div class="err">{{ error }}</div>{% endif %}
+      </form>
+      <div class="foot">Authorised users only</div>
+    </div>
+  </div>
 </body>
 </html>
