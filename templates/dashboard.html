@@ -504,7 +504,7 @@ function renderHeatmap(c){
   });
   // header — two segregated blocks: Δ (#) and Δ (%)
   let h='<div class="card"><div class="card-hd"><div class="t">'+esc(MARKET_LABELS[S.active]||S.active)+
-        '<small>Open-Interest change · vs prior sessions</small></div>'+
+        '<small>Open-Interest change · vs prior sessions · generic (by curve position)</small></div>'+
         '<div class="r">Δ OI · green rising · blue falling</div></div><div class="tbl-wrap"><table class="grid"><thead>';
   const sort=S.sort[S.active]||null;
   const sortTh=(key,label,cls,attrs)=>{
@@ -688,8 +688,8 @@ function stitchedSeries(mk,chron,rolls,i){   // today's i-th contract sat one ro
   return out;
 }
 // roll = {idx:Set, stitch:bool} — stitch where the full strip is present; otherwise just break the line at each roll
-function seriesDatasets(mk,contracts,dates,N,mode,roll){
-  const vis=S.seriesVis[S.active], def=defaultVisible(N);
+function seriesDatasets(mk,contracts,dates,N,mode,roll,defVis){
+  const vis=S.seriesVis[S.active], def=defVis||defaultVisible(N);
   // colour slot per contract: default-visible lines first (curve order), then the rest — fixed, so toggling never repaints
   const slotOrder=[...[...def].sort((a,b)=>a-b), ...[...Array(N).keys()].filter(i=>!def.has(i))];
   const slot=new Map(slotOrder.map((ci,k)=>[ci,k]));
@@ -713,15 +713,27 @@ function renderSeries(c){
   const mk=S.markets[S.active]; if(!mk){c.innerHTML='';return;}
   if(!S.seriesMode) S.seriesMode='pct';
   const mode=S.seriesMode, isPct=(mode==='pct');
-  const contracts=mk.contracts||[];
-  const dates=cleanDates(mk.dates||[]).reverse();     // chronological (oldest→newest)
-  const labels=dates.slice();
-  const N=Math.min(contracts.length,12);
+  const brazil=/brazil|brl/i.test(S.active);
+  // Brazil Series: January (F) contracts only — first 4 shown, the rest listed but off by default
+  const contracts=brazil?(mk.contracts||[]).filter(ct=>/^F\d{2}$/i.test(ct)):(mk.contracts||[]);
+  let dates=cleanDates(mk.dates||[]).reverse();     // chronological (oldest→newest)
   // Brazil is filtered to F/J/N/V server-side, so its strip has gaps and can't be re-stitched
-  const roll={idx:rollIdx(mk,dates), stitch:!/brazil|brl/i.test(S.active)};
-  const datasets=seriesDatasets(mk,contracts,dates,N,mode,roll);
+  let roll={idx:rollIdx(mk,dates), stitch:!brazil};
+  // unstitchable: show only the stretch since the last roll, where each row is one contract throughout
+  let sinceRoll=null;
+  if(!roll.stitch && roll.idx.size){
+    const k=Math.max(...roll.idx); sinceRoll=dates[k];
+    dates=dates.slice(k); roll={idx:new Set(), stitch:false};
+  }
+  const labels=dates.slice();
+  const N=brazil?contracts.length:Math.min(contracts.length,12);   // Brazil: list every F contract
+  const defVis=brazil?new Set([0,1,2,3].filter(i=>i<N)):null;
+  const datasets=seriesDatasets(mk,contracts,dates,N,mode,roll,defVis);
   c.innerHTML='<div class="card"><div class="card-hd"><div class="t">'+esc(MARKET_LABELS[S.active]||S.active)+
-    '<small>Open-Interest '+(isPct?'relative change':'levels')+'</small></div></div>'+
+    '<small>Open-Interest '+(isPct?'relative change':'levels')+' · '+
+      // say what the lines really are: stitched per contract, or generic (Treasuries = front contract per tenor)
+      (/treas|tnote|tbond/i.test(S.active)?'generic front contract per tenor'
+        :roll.stitch?'contract-wise (not generic)':(sinceRoll?'since last roll '+fmtDateShort(sinceRoll):'generic'))+'</small></div></div>'+
     '<div class="series-tools"><div class="seg small" id="ser-mode">'+
       '<button data-m="pct"'+(isPct?' class="active"':'')+'>% Change</button>'+
       '<button data-m="level"'+(!isPct?' class="active"':'')+'>Levels</button></div>'+
