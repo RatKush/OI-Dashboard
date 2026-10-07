@@ -235,36 +235,6 @@ def save_pvf(pvf):
     with open(PVF_FILE, 'w') as f:
         json.dump(pvf, f)
 
-# One-step undo: every publish first saves what it replaces (live data + Pre vs Final snapshot).
-# Restoring swaps live and previous, so a mistaken restore can itself be undone.
-PREV_FILE = os.path.join(DATA_DIR, 'previous.json')
-
-def load_previous():
-    if os.path.exists(PREV_FILE):
-        with open(PREV_FILE, 'r') as f:
-            return json.load(f)
-    return None
-
-def save_previous():
-    current = load_current()
-    if current is None:
-        return
-    with open(PREV_FILE, 'w') as f:
-        json.dump({'current': current, 'pvf': load_pvf()}, f)
-
-def pvf_status(current, pvf):
-    """Same rule as the dashboard: compare only when live data is Final for the Pre snapshot's date."""
-    if not current:
-        return {'state': 'none', 'text': 'Nothing published yet'}
-    latest = current.get('latest_date', '—')
-    if not current.get('is_final'):
-        return {'state': 'waiting', 'text': f'Waiting for Final OI for {latest}'}
-    if pvf and pvf.get('snapshot_date') == latest:
-        return {'state': 'comparing', 'text': f'Comparing Pre ↔ Final for {latest}'}
-    last = pvf.get('snapshot_date') if pvf else None
-    return {'state': 'mismatch',
-            'text': f'No matching Pre OI for {latest}' + (f' (last Pre snapshot: {last})' if last else '')}
-
 def admin_required(fn):
     from functools import wraps
     @wraps(fn)
@@ -467,7 +437,6 @@ def admin_panel():
             'latest_date':     data.get('latest_date', '—'),
             'markets_count':   data.get('markets_count', 0),
             'contracts_count': data.get('contracts_count', 0),
-            'is_final':        data.get('is_final') is True,
         }
     pvf_meta = {}
     if pvf:
@@ -476,17 +445,7 @@ def admin_panel():
             'updated_at':    pvf.get('updated_at', '—'),
             'markets':       pvf.get('market_order', []),
         }
-    prev = load_previous()
-    prev_meta = None
-    if prev and prev.get('current'):
-        pc = prev['current']
-        prev_meta = {
-            'latest_date': pc.get('latest_date', '—'),
-            'updated_at':  pc.get('updated_at', '—'),
-            'is_final':    pc.get('is_final') is True,
-        }
-    return render_template('admin.html', meta=meta, pvf_meta=pvf_meta,
-                           pvf_state=pvf_status(data, pvf), prev_meta=prev_meta)
+    return render_template('admin.html', meta=meta, pvf_meta=pvf_meta)
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
@@ -551,16 +510,12 @@ def admin_publish():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-    save_previous()   # one-step undo for "Restore previous"
-
     # If this is a Final OI upload:
     #   1. Snapshot current data's latest-column into pre_vs_final.json BEFORE overwriting
     #   2. Then save new data as current
-    #   Re-publishing a Final (e.g. a corrected file) keeps the original Pre snapshot —
-    #   otherwise the first Final would become "Pre" and the comparison would be Final vs Final.
     if is_final:
         current = load_current()
-        if current and not current.get('is_final'):
+        if current:
             snap = snapshot_pre_oi(current)
             if snap:
                 save_pvf(snap)
@@ -571,28 +526,6 @@ def admin_publish():
         'ok':         True,
         'updated_at': parsed['updated_at'],
         'is_final':   is_final,
-    })
-
-@app.route('/admin/restore', methods=['POST'])
-@admin_required
-def admin_restore():
-    """Swap live data (and its Pre vs Final snapshot) with the previously published version."""
-    prev = load_previous()
-    if not prev or not prev.get('current'):
-        return jsonify({'error': 'No previous version to restore'}), 404
-    live_current, live_pvf = load_current(), load_pvf()
-    save_current(prev['current'])
-    if prev.get('pvf') is not None:
-        save_pvf(prev['pvf'])
-    elif os.path.exists(PVF_FILE):
-        os.remove(PVF_FILE)
-    with open(PREV_FILE, 'w') as f:
-        json.dump({'current': live_current, 'pvf': live_pvf}, f)
-    restored = prev['current']
-    return jsonify({
-        'ok':          True,
-        'latest_date': restored.get('latest_date'),
-        'is_final':    restored.get('is_final') is True,
     })
 
 if __name__ == '__main__':
