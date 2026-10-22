@@ -291,18 +291,26 @@ def apply_cme(current, cme):
         if not rows:
             continue
         data = {c: dict(v) for c, v in mk.get('data', {}).items()}
-        bb_latest = _ddmmyy_key(dates[0]) if dates else None
         cme_dates = sorted((d for d in rows if _ddmmyy_key(d)), key=_ddmmyy_key, reverse=True)
         for d in cme_dates:
-            if d not in mk.get('dates', []) and bb_latest and _ddmmyy_key(d) < bb_latest:
-                continue   # a gap inside Bloomberg's history: leave the workbook's columns as they are
             for c in mk.get('contracts', []):
                 data.setdefault(c, {})[d] = rows[d].get(c)   # a contract CME no longer lists shows blank
-        # newer sessions go in front (newest first, like the parser); Bloomberg's own columns keep
-        # their order, junk headers included, so the client-side cleaning sees what it always did
-        newer = [d for d in cme_dates if not bb_latest or _ddmmyy_key(d) > bb_latest]
-        out['markets'][name] = dict(mk, dates=newer + list(mk.get('dates', [])), data=data)
-        newest = newer[0] if newer else (dates[0] if dates else None)
+        # A session the workbook lacks (newer than it, or a day it skipped) goes in at its place in the
+        # leading newest-first run of real dates.  Bloomberg's own columns keep their order, junk headers
+        # and repeated blocks included, so the client-side cleaning sees what it always did.
+        all_dates = list(mk.get('dates', []))
+        for d in cme_dates:
+            if d in all_dates:
+                continue
+            k, i = _ddmmyy_key(d), 0
+            while i < len(all_dates) and _ddmmyy_key(all_dates[i]) and _ddmmyy_key(all_dates[i]) > k \
+                    and (i == 0 or _ddmmyy_key(all_dates[i]) < _ddmmyy_key(all_dates[i - 1])):
+                i += 1
+            if i < len(all_dates) and not (_ddmmyy_key(all_dates[i]) and _ddmmyy_key(all_dates[i]) < k):
+                continue   # older than where the workbook's clean run ends: leave its history alone
+            all_dates.insert(i, d)
+        out['markets'][name] = dict(mk, dates=all_dates, data=data)
+        newest = all_dates[0] if all_dates and _ddmmyy_key(all_dates[0]) else None
         sources[name] = {'source': 'CME' if newest in rows else 'Bloomberg', 'latest': newest,
                          'cme_dates': len(cme_dates)}
     out['sources'] = sources
