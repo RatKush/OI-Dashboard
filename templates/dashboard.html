@@ -118,6 +118,17 @@ header.topbar{
 }
 .tab:hover{color:var(--navy);background:rgba(255,255,255,.45)}
 .tab.active{color:var(--navy);border-bottom-color:var(--navy);background:rgba(255,255,255,.7)}
+.tab .fdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:7px;vertical-align:1px}
+.fdot.ok{background:var(--pos)} .fdot.lag{background:#e0a21b}
+/* per-market freshness line under the tabs */
+.freshbar{background:#f4f6fa;border-bottom:1px solid #d3dae5;padding:6px 20px;font-size:11.5px;color:var(--ink-soft);
+  display:flex;gap:6px 18px;flex-wrap:wrap;align-items:center}
+.freshbar .fg{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.freshbar .fg b{color:var(--ink)}
+.freshbar .src{font-size:9.5px;font-weight:800;letter-spacing:.08em;padding:1px 5px;border-radius:3px;
+  background:var(--chip);color:var(--slate)}
+.freshbar .src.cme{background:#dcefe6;color:#17714d}
+.freshbar .lagtxt{color:#a06c00;font-weight:700}
 .viewtoggle{display:flex;align-items:center;gap:8px;padding:8px 0}
 .seg{display:inline-flex;background:#c7d0dd;border-radius:8px;padding:3px}
 .seg button{
@@ -278,6 +289,7 @@ table.grid thead th.pvf-mkt{text-align:left;padding:8px 10px}
     </div>
   </div>
 </div>
+<div class="freshbar" id="freshbar" hidden></div>
 
 <main id="content">
   <div class="loading">Loading open-interest data…</div>
@@ -405,11 +417,45 @@ async function fetchData(){
   if(S.urlSort){ S.sort[S.active]=S.urlSort; S.urlSort=null; }
   S.meta = { latest:d.latest_date, isFinal:d.is_final===true, updated:d.updated_at };
   S.pvf = null;   // re-check Pre vs Final on every refresh, so "waiting" flips to the comparison by itself
-  $('#m-date').textContent = d.latest_date||'—';
+  S.fresh = freshness(d.sources||{}, d.cme_pushed_at);
+  $('#m-date').textContent = S.fresh.newest||d.latest_date||'—';
   $('#m-mkts').textContent = d.markets_count ?? S.order.length;
   $('#m-contracts').textContent = d.contracts_count ?? '—';
   $('#m-updated').textContent = fmtUpdated(d.updated_at);
-  buildTabs(); render();
+  buildTabs(); buildFreshbar(); render();
+}
+// Per-market freshness. SR3/FF can run ahead on CME's feed while the rest wait for the next Bloomberg
+// workbook: a market is up to date when it has the newest session of any market and that session is
+// not itself overdue; otherwise it is lagging by the business days it trails the newest one.
+function bizDaysBetween(a,b){ let n=0; const x=new Date(a); while(x<b){ x.setDate(x.getDate()+1); if(x.getDay()%6) n++; } return n; }
+function freshness(sources,pushedAt){
+  const per={}; let newest=null;
+  S.order.forEach(m=>{ const d=parseD(sources[m]?.latest); if(d && (!newest||d>newest)) newest=d; });
+  const newestStale = newest && newest<prevBizDay(prevBizDay(new Date()));
+  S.order.forEach(m=>{
+    const s=sources[m]||{}, d=parseD(s.latest), behind=d&&newest?bizDaysBetween(d,newest):null;
+    per[m]={ src:s.source||'Bloomberg', latest:s.latest||null, behind, ok:behind===0 && !newestStale };
+  });
+  const nl=newest?S.order.map(m=>per[m].latest).find(l=>parseD(l)?.getTime()===newest.getTime()):null;
+  return { per, newest:nl, newestStale, pushedAt };
+}
+function freshTitle(m){
+  const f=S.fresh?.per[m]; if(!f) return '';
+  return (m==='treasuries'?'Treasuries':m)+' · OI as of '+(f.latest||'—')+' · source '+f.src+
+    (f.ok?' · up to date':f.behind?' · '+f.behind+' session'+(f.behind>1?'s':'')+' behind':' · overdue');
+}
+function buildFreshbar(){
+  const bar=$('#freshbar'), F=S.fresh;
+  if(!F || !S.order.length){ bar.hidden=true; return; }
+  const groups=[];   // markets sharing date + source, in tab order
+  S.order.forEach(m=>{ const f=F.per[m], k=f.latest+'|'+f.src;
+    let g=groups.find(x=>x.k===k); if(!g) groups.push(g={k,f,ms:[]}); g.ms.push(m==='treasuries'?'Treasuries':m); });
+  bar.innerHTML='<span>OI as of</span>'+groups.map(({f,ms})=>
+    '<span class="fg"><i class="fdot '+(f.ok?'ok':'lag')+'"></i><b>'+esc(ms.join(' · '))+'</b> '+
+    '<span class="num">'+esc(f.latest||'—')+'</span> <span class="src'+(f.src==='CME'?' cme':'')+'">'+esc(f.src)+'</span>'+
+    (f.ok?'':' <span class="lagtxt">'+(f.behind?f.behind+' behind':'overdue')+'</span>')+'</span>').join('');
+  bar.title=F.pushedAt?'CME feed last pushed '+fmtUpdated(F.pushedAt):'';
+  bar.hidden=false;
 }
 function fmtUpdated(iso){
   if(!iso) return '—';
@@ -430,6 +476,8 @@ function buildTabs(){
     const b=document.createElement('button');
     b.className='tab'+(m===S.active?' active':'');
     b.textContent=(m==='treasuries')?'Treasuries':m;
+    const f=S.fresh?.per[m];
+    if(f){ const i=document.createElement('i'); i.className='fdot '+(f.ok?'ok':'lag'); b.appendChild(i); b.title=freshTitle(m); }
     b.onclick=()=>{ S.active=m; buildTabs(); render(); };
     box.appendChild(b);
   });

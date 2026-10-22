@@ -3,6 +3,7 @@ OI Profile Dashboard — Flask Server
   GET  /                      → public dashboard
   GET  /api/dashboard-data    → parsed JSON for dashboard
   GET  /api/pre-vs-final      → pre vs final OI comparison data
+  POST /api/cme-oi            → CME OI rows for SR3/FF, pushed from the PC (token protected)
   GET  /admin                 → admin panel (password protected)
   POST /admin/upload          → upload & parse new workbook
   POST /admin/login           → authenticate
@@ -22,7 +23,7 @@ from openpyxl import load_workbook
 
 # ── CONFIG ──────────────────────────────────────────────────────────────
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR        = os.path.join(BASE_DIR, 'data')
+DATA_DIR        = os.environ.get('OI_DATA_DIR') or os.path.join(BASE_DIR, 'data')
 UPLOAD_DIR      = os.path.join(BASE_DIR, 'uploads')
 DATA_FILE       = os.path.join(DATA_DIR, 'current.json')
 PVF_FILE        = os.path.join(DATA_DIR, 'pre_vs_final.json')   # pre-vs-final store
@@ -252,6 +253,63 @@ def save_previous():
     with open(PREV_FILE, 'w') as f:
         json.dump({'current': current, 'pvf': load_pvf()}, f)
 
+# CME open interest for SR3 / FF, pushed from the PC by tools/push_cme_oi.py after IMAGINE's daily sync.
+# Stored apart from the workbook data and laid over it when the dashboard asks, so a new Bloomberg
+# upload never loses it and current.json always stays exactly what was published.
+# Shape: {pushed_at, generated_at, markets: {SR3: {'dd/mm/yy': {contract: oi}}}}
+CME_FILE        = os.path.join(DATA_DIR, 'cme_oi.json')
+CME_MARKETS     = ('SR3', 'FF')
+CME_PUSH_TOKEN  = os.environ.get('CME_PUSH_TOKEN', '')
+
+def load_cme():
+    if os.path.exists(CME_FILE):
+        with open(CME_FILE, 'r') as f:
+            return json.load(f)
+    return None
+
+def _ddmmyy_key(s):
+    """dd/mm/yy -> sortable (yy, mm, dd); None if it is not a date."""
+    m = re.match(r'^(\d{2})/(\d{2})/(\d{2})$', str(s))
+    return (m.group(3), m.group(2), m.group(1)) if m else None
+
+def apply_cme(current, cme):
+    """Copy of the published payload with CME OI laid over SR3/FF, plus per-market freshness.
+
+    Bloomberg stays the base: its contract list and history are kept.  CME fills every date newer than
+    the workbook's, and on dates both have, CME (always Final) replaces Bloomberg (which may be Pre).
+    Adds payload['sources'] = {market: {'source': 'CME'|'Bloomberg', 'latest': 'dd/mm/yy', 'cme_dates': n}}.
+    """
+    out = dict(current)
+    out['markets'] = dict(current.get('markets', {}))
+    sources = {}
+    cme_mkts = (cme or {}).get('markets', {})
+    for name in current.get('market_order', []):
+        mk = out['markets'][name]
+        dates = [d for d in mk.get('dates', []) if _ddmmyy_key(d)]
+        sources[name] = {'source': 'Bloomberg', 'latest': dates[0] if dates else None, 'cme_dates': 0}
+        rows = cme_mkts.get(name)
+        if not rows:
+            continue
+        data = {c: dict(v) for c, v in mk.get('data', {}).items()}
+        bb_latest = _ddmmyy_key(dates[0]) if dates else None
+        cme_dates = sorted((d for d in rows if _ddmmyy_key(d)), key=_ddmmyy_key, reverse=True)
+        for d in cme_dates:
+            if d not in mk.get('dates', []) and bb_latest and _ddmmyy_key(d) < bb_latest:
+                continue   # a gap inside Bloomberg's history: leave the workbook's columns as they are
+            for c in mk.get('contracts', []):
+                data.setdefault(c, {})[d] = rows[d].get(c)   # a contract CME no longer lists shows blank
+        # newer sessions go in front (newest first, like the parser); Bloomberg's own columns keep
+        # their order, junk headers included, so the client-side cleaning sees what it always did
+        newer = [d for d in cme_dates if not bb_latest or _ddmmyy_key(d) > bb_latest]
+        out['markets'][name] = dict(mk, dates=newer + list(mk.get('dates', [])), data=data)
+        newest = newer[0] if newer else (dates[0] if dates else None)
+        sources[name] = {'source': 'CME' if newest in rows else 'Bloomberg', 'latest': newest,
+                         'cme_dates': len(cme_dates)}
+    out['sources'] = sources
+    if cme:
+        out['cme_pushed_at'] = cme.get('pushed_at')
+    return out
+
 def pvf_status(current, pvf):
     """Same rule as the dashboard: compare only when live data is Final for the Pre snapshot's date."""
     if not current:
@@ -416,7 +474,42 @@ def api_dashboard_data():
     data = load_current()
     if data is None:
         return jsonify({'error': 'No data published yet'}), 404
-    return jsonify(data)
+    return jsonify(apply_cme(data, load_cme()))
+
+@app.route('/api/cme-oi', methods=['POST'])
+def api_cme_oi():
+    """CME OI from tools/push_cme_oi.py.  Body: {generated_at, markets: {SR3: {'dd/mm/yy': {contract: oi}}}}.
+    Replaces the stored rows per market sent (the feed always carries its full history)."""
+    if not CME_PUSH_TOKEN:
+        return jsonify({'error': 'CME push is not enabled on this server (CME_PUSH_TOKEN unset)'}), 503
+    auth = request.headers.get('Authorization', '')
+    if not secrets.compare_digest(auth, 'Bearer ' + CME_PUSH_TOKEN):
+        return jsonify({'error': 'Bad token'}), 401
+    if (request.content_length or 0) > 2_000_000:
+        return jsonify({'error': 'Payload too large'}), 413
+    body = request.get_json(silent=True) or {}
+    clean = {}
+    for name, rows in (body.get('markets') or {}).items():
+        if name not in CME_MARKETS or not isinstance(rows, dict):
+            return jsonify({'error': f'Unexpected market {name!r}'}), 400
+        clean[name] = {}
+        for d, oi in rows.items():
+            if not _ddmmyy_key(d) or not isinstance(oi, dict):
+                return jsonify({'error': f'{name}: bad date {d!r}'}), 400
+            clean[name][d] = {str(c)[:8]: int(v) for c, v in oi.items()
+                              if isinstance(v, (int, float)) and v > 0}
+    if not clean:
+        return jsonify({'error': 'No markets in payload'}), 400
+    stored = load_cme() or {'markets': {}}
+    stored['markets'].update(clean)
+    stored['generated_at'] = str(body.get('generated_at', ''))[:40]
+    stored['pushed_at'] = datetime.utcnow().isoformat() + 'Z'
+    tmp = CME_FILE + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(stored, f)
+    os.replace(tmp, CME_FILE)
+    return jsonify({'ok': True, 'pushed_at': stored['pushed_at'],
+                    'latest': {m: max(r, key=_ddmmyy_key) for m, r in clean.items() if r}})
 
 @app.route('/api/pre-vs-final')
 def api_pre_vs_final():

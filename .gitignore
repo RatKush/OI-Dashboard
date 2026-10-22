@@ -5,3 +5,9 @@ env/
 __pycache__/
 .DS_Store
 .env
+
+# CME OI push (personal use, never committed)
+data/cme_oi.json
+tools/.env
+tools/.last_push.json
+tools/push_cme_oi.log
