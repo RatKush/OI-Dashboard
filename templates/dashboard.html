@@ -570,11 +570,12 @@ function renderHeatmap(c){
   HZ.forEach(([lab],i)=>h+=sortTh('n'+i,lab,i===0?'sepL':''));
   HZ.forEach(([lab],i)=>h+=sortTh('p'+i,lab,i===0?'sepX':''));
   h+='</tr></thead><tbody>';
-  // row order: curve order by default; when sorted, across the whole curve (blanks always last)
+  // row order: curve order by default; when sorted, across the whole curve (blanks always last).
+  // Change columns (# and %) sort by magnitude, sign ignored: ▼ = biggest moves either way first
   const rows=contracts.map((ct,ri)=>({ct,ri}));
   if(sort){
-    const val=r=>sort.key==='latest'?mk.data[r.ct]?.[latestD]
-      :(sort.key[0]==='n'?chNum:chPct)[r.ct][+sort.key.slice(1)];
+    const val=r=>{ if(sort.key==='latest') return mk.data[r.ct]?.[latestD];
+      const v=(sort.key[0]==='n'?chNum:chPct)[r.ct][+sort.key.slice(1)]; return v==null?v:Math.abs(v); };
     const sgn=sort.dir==='asc'?1:-1;
     rows.sort((a,b)=>{const va=val(a),vb=val(b);
       if(va==null) return vb==null?a.ri-b.ri:1;
@@ -617,7 +618,7 @@ function renderHeatmap(c){
   h+='</tbody></table></div>';
   h+='<div class="legend"><span class="lg">OI falling <span class="ramp"></span> OI rising</span>'+
      '<span class="lg" style="color:var(--muted)">per-column scale · white ≈ unchanged · negatives <span class="down">red</span> · '+
-     'click header to sort ▼/▲ · <b>Contract</b> resets</span></div>';
+     'click header to sort ▼/▲ (changes by size, ± ignored) · <b>Contract</b> resets</span></div>';
   h+='</div>';
   c.innerHTML=h;
   c.querySelectorAll('th[data-sort]').forEach(th=>th.onclick=()=>{
