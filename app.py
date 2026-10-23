@@ -316,6 +316,10 @@ def apply_cme(current, cme):
         if newest in rows:   # CME's pass for that session: Preliminary until its Final is out
             sources[name]['report'] = (cme or {}).get('reports', {}).get(name, {}).get(newest, 'Final')
     out['sources'] = sources
+    # newest session of any market and source - what the share title and the Live/Stale dot show;
+    # latest_date stays the workbook's, which Pre vs Final matches its snapshots against
+    keys = [s['latest'] for s in sources.values() if _ddmmyy_key(s['latest'])]
+    out['newest_date'] = max(keys, key=_ddmmyy_key) if keys else current.get('latest_date')
     if cme:
         out['cme_pushed_at'] = cme.get('pushed_at')
     return out
@@ -354,7 +358,9 @@ def _latest_date_for_title(latest_date):
 
 def build_share_meta():
     data = load_current() or {}
-    date_label = _latest_date_for_title(data.get('latest_date'))
+    if data:
+        data = apply_cme(data, load_cme())
+    date_label = _latest_date_for_title(data.get('newest_date') or data.get('latest_date'))
     title = f"OI Profile {date_label}" if date_label else 'OI Profile Dashboard'
     return {
         'title': title,

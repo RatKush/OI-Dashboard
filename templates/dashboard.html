@@ -407,9 +407,9 @@ async function fetchData(){
     if(!S.order.length) $('#content').innerHTML = '<div class="card"><div class="empty">Could not reach the server. It will retry automatically.</div></div>';
     return;
   }
-  const stale=isStale(d.latest_date,new Date());
+  const newest=d.newest_date||d.latest_date, stale=isStale(newest,new Date());
   setLive(stale?'stale':'live',(stale?'Behind schedule — a daily publication looks missed. ':'')+
-    'Data as of '+(d.latest_date||'—')+' · published '+fmtUpdated(d.updated_at)+' · checked '+hhmm());
+    'Data as of '+(newest||'—')+' (newest of any market) · workbook published '+fmtUpdated(d.updated_at)+' · checked '+hhmm());
   S.markets = d.markets||{}; S.order = d.market_order||[];
   if(S.active && !S.markets[S.active])   // market from URL: accept any letter case
     S.active = S.order.find(m=>m.toLowerCase()===String(S.active).toLowerCase())||null;
