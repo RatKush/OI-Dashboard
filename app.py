@@ -56,7 +56,7 @@ def market_contract_cap(name):
     return None
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(os.path.join(BASE_DIR, '.env'))   # beside app.py: the web server's working directory may be elsewhere
 
 LOCAL_FALLBACK_HASH      = generate_password_hash('localadmin123')
 ADMIN_PASSWORD_HASH      = os.environ.get("ADMIN_PASSWORD_HASH", LOCAL_FALLBACK_HASH)
