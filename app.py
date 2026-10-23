@@ -313,6 +313,8 @@ def apply_cme(current, cme):
         newest = all_dates[0] if all_dates and _ddmmyy_key(all_dates[0]) else None
         sources[name] = {'source': 'CME' if newest in rows else 'Bloomberg', 'latest': newest,
                          'cme_dates': len(cme_dates)}
+        if newest in rows:   # CME's pass for that session: Preliminary until its Final is out
+            sources[name]['report'] = (cme or {}).get('reports', {}).get(name, {}).get(newest, 'Final')
     out['sources'] = sources
     if cme:
         out['cme_pushed_at'] = cme.get('pushed_at')
@@ -508,8 +510,11 @@ def api_cme_oi():
                               if isinstance(v, (int, float)) and v > 0}
     if not clean:
         return jsonify({'error': 'No markets in payload'}), 400
+    reports = {m: {d: ('Preliminary' if t == 'Preliminary' else 'Final') for d, t in r.items() if _ddmmyy_key(d)}
+               for m, r in (body.get('reports') or {}).items() if m in clean and isinstance(r, dict)}
     stored = load_cme() or {'markets': {}}
     stored['markets'].update(clean)
+    stored.setdefault('reports', {}).update(reports)
     stored['generated_at'] = str(body.get('generated_at', ''))[:40]
     stored['pushed_at'] = datetime.utcnow().isoformat() + 'Z'
     tmp = CME_FILE + '.tmp'

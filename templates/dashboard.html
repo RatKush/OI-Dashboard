@@ -434,7 +434,7 @@ function freshness(sources,pushedAt){
   const newestStale = newest && newest<prevBizDay(prevBizDay(new Date()));
   S.order.forEach(m=>{
     const s=sources[m]||{}, d=parseD(s.latest), behind=d&&newest?bizDaysBetween(d,newest):null;
-    per[m]={ src:s.source||'Bloomberg', latest:s.latest||null, behind, ok:behind===0 && !newestStale };
+    per[m]={ src:s.source||'Bloomberg', prelim:s.report==='Preliminary', latest:s.latest||null, behind, ok:behind===0 && !newestStale };
   });
   const nl=newest?S.order.map(m=>per[m].latest).find(l=>parseD(l)?.getTime()===newest.getTime()):null;
   return { per, newest:nl, newestStale, pushedAt };
@@ -442,17 +442,19 @@ function freshness(sources,pushedAt){
 function freshTitle(m){
   const f=S.fresh?.per[m]; if(!f) return '';
   return (m==='treasuries'?'Treasuries':m)+' · OI as of '+(f.latest||'—')+' · source '+f.src+
+    (f.prelim?' (preliminary — Final replaces it about a day later)':'')+
     (f.ok?' · up to date':f.behind?' · '+f.behind+' session'+(f.behind>1?'s':'')+' behind':' · overdue');
 }
 function buildFreshbar(){
   const bar=$('#freshbar'), F=S.fresh;
   if(!F || !S.order.length){ bar.hidden=true; return; }
   const groups=[];   // markets sharing date + source, in tab order
-  S.order.forEach(m=>{ const f=F.per[m], k=f.latest+'|'+f.src;
+  S.order.forEach(m=>{ const f=F.per[m], k=f.latest+'|'+f.src+'|'+f.prelim;
     let g=groups.find(x=>x.k===k); if(!g) groups.push(g={k,f,ms:[]}); g.ms.push(m==='treasuries'?'Treasuries':m); });
   bar.innerHTML='<span>OI as of</span>'+groups.map(({f,ms})=>
     '<span class="fg"><i class="fdot '+(f.ok?'ok':'lag')+'"></i><b>'+esc(ms.join(' · '))+'</b> '+
-    '<span class="num">'+esc(f.latest||'—')+'</span> <span class="src'+(f.src==='CME'?' cme':'')+'">'+esc(f.src)+'</span>'+
+    '<span class="num">'+esc(f.latest||'—')+'</span> <span class="src'+(f.src==='CME'?' cme':'')+'"'+
+    (f.prelim?' title="Preliminary OI — CME publishes the Final about a day later"':'')+'>'+esc(f.src)+(f.prelim?' prelim':'')+'</span>'+
     (f.ok?'':' <span class="lagtxt">'+(f.behind?f.behind+' behind':'overdue')+'</span>')+'</span>').join('');
   bar.title=F.pushedAt?'CME feed last pushed '+fmtUpdated(F.pushedAt):'';
   bar.hidden=false;

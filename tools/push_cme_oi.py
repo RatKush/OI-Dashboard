@@ -40,14 +40,17 @@ def log(msg):
 
 def build_payload(manifest):
     """{market: {'dd/mm/yy': {contract: oi}}}, keyed by oi_date - the session the OI belongs to,
-    which is the date Bloomberg's workbook uses for the same number."""
-    markets = {}
+    which is the date Bloomberg's workbook uses for the same number - plus each session's pass
+    in reports: {market: {'dd/mm/yy': 'Preliminary' | 'Final'}}."""
+    markets, reports = {}, {}
     for m in MARKETS:
         df = oi.load(m)
         df = df[df.open_interest > 0]
         markets[m] = {d.strftime('%d/%m/%y'): dict(zip(g.contract, g.open_interest.astype(int).tolist()))
                       for d, g in df.groupby('oi_date')}
-    return {'generated_at': manifest['generated_at'], 'markets': markets}
+        reports[m] = {d.strftime('%d/%m/%y'): 'Final' if (g.report_type == 'Final').all() else 'Preliminary'
+                      for d, g in df.groupby('oi_date')}
+    return {'generated_at': manifest['generated_at'], 'markets': markets, 'reports': reports}
 
 
 def main():
@@ -74,7 +77,8 @@ def main():
         return 0
 
     payload = build_payload(manifest)
-    summary = ', '.join(f'{m} {len(r)} sessions to {max(r, key=lambda s: s[6:] + s[3:5] + s[:2])}'
+    newest = lambda r: max(r, key=lambda s: s[6:] + s[3:5] + s[:2])
+    summary = ', '.join(f'{m} {len(r)} sessions to {newest(r)} ({payload["reports"][m][newest(r)]})'
                         for m, r in payload['markets'].items() if r)
     if a.dry_run:
         print(json.dumps(payload)[:600], '...')
