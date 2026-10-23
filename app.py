@@ -258,7 +258,7 @@ def save_previous():
 # upload never loses it and current.json always stays exactly what was published.
 # Shape: {pushed_at, generated_at, markets: {SR3: {'dd/mm/yy': {contract: oi}}}}
 CME_FILE        = os.path.join(DATA_DIR, 'cme_oi.json')
-CME_MARKETS     = ('SR3', 'FF')
+CME_MARKETS     = ('SR3', 'FF', 'treasuries')   # treasuries: per tenor, first two contracts added
 CME_PUSH_TOKEN  = os.environ.get('CME_PUSH_TOKEN', '')
 
 def load_cme():
@@ -512,7 +512,7 @@ def api_cme_oi():
         for d, oi in rows.items():
             if not _ddmmyy_key(d) or not isinstance(oi, dict):
                 return jsonify({'error': f'{name}: bad date {d!r}'}), 400
-            clean[name][d] = {str(c)[:8]: int(v) for c, v in oi.items()
+            clean[name][d] = {str(c)[:40]: int(v) for c, v in oi.items()
                               if isinstance(v, (int, float)) and v > 0}
     if not clean:
         return jsonify({'error': 'No markets in payload'}), 400

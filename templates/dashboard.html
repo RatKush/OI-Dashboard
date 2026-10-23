@@ -782,8 +782,8 @@ function renderSeries(c){
   const datasets=seriesDatasets(mk,contracts,dates,N,mode,roll,defVis);
   c.innerHTML='<div class="card"><div class="card-hd"><div class="t">'+esc(MARKET_LABELS[S.active]||S.active)+
     '<small>Open-Interest '+(isPct?'relative change':'levels')+' · '+
-      // say what the lines really are: stitched per contract, or generic (Treasuries = front contract per tenor)
-      (/treas|tnote|tbond/i.test(S.active)?'generic front contract per tenor'
+      // say what the lines really are: stitched per contract, or generic (Treasuries = first two contracts per tenor, added)
+      (/treas|tnote|tbond/i.test(S.active)?'front two contracts combined, per tenor'
         :roll.stitch?'contract-wise (not generic)':(sinceRoll?'since last roll '+fmtDateShort(sinceRoll):'generic'))+'</small></div></div>'+
     '<div class="series-tools"><div class="seg small" id="ser-mode">'+
       '<button data-m="pct"'+(isPct?' class="active"':'')+'>% Change</button>'+

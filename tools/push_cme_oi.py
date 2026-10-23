@@ -27,6 +27,10 @@ os.environ.setdefault('IMAGINE_OI_FEED', r'C:\Users\ARB\IMAGINE\Million dollar 2
 import read_oi as oi   # noqa: E402 - reads IMAGINE_OI_FEED at import
 
 MARKETS = ('SR3', 'FF')
+# the dashboard's "treasuries" market: one row per tenor = the first two listed contracts' OI added
+# together, which is the number the Bloomberg workbook carries (checked against CME 15/10 and 16/10)
+TREASURIES = {'ZT': 'US 2 YEAR TREASURY', 'ZF': 'US 5 YEAR TREASURY', 'ZN': 'US 10 YEAR TREASURY',
+              'TN': 'US 10 YEAR ULTRA TREASURY', 'ZB': 'US 30 YEAR TREASURY', 'UB': 'US 30 YEAR ULTRA TREASURY'}
 STATE = HERE / '.last_push.json'   # generated_at of the last feed pushed, per target URL
 LOG = HERE / 'push_cme_oi.log'
 
@@ -50,6 +54,18 @@ def build_payload(manifest):
                       for d, g in df.groupby('oi_date')}
         reports[m] = {d.strftime('%d/%m/%y'): 'Final' if (g.report_type == 'Final').all() else 'Preliminary'
                       for d, g in df.groupby('oi_date')}
+    df = oi.load()
+    df = df[df.market.isin(list(TREASURIES)) & (df.open_interest > 0)].sort_values('contract_month')
+    first2 = df.groupby(['oi_date', 'market']).head(2)
+    tsy, rep = {}, {}
+    for d, g in first2.groupby('oi_date'):
+        if set(g.market) != set(TREASURIES):     # a session goes out only with all six tenors
+            continue
+        k = d.strftime('%d/%m/%y')
+        tsy[k] = {TREASURIES[m]: int(x.open_interest.sum()) for m, x in g.groupby('market')}
+        rep[k] = 'Final' if (g.report_type == 'Final').all() else 'Preliminary'
+    if tsy:
+        markets['treasuries'], reports['treasuries'] = tsy, rep
     return {'generated_at': manifest['generated_at'], 'markets': markets, 'reports': reports}
 
 
