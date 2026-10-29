@@ -25,6 +25,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 load_dotenv(HERE / '.env')
 os.environ.setdefault('IMAGINE_OI_FEED', r'C:\Users\ARB\IMAGINE\Million dollar 2.0\data\feeds\cme_oi')
 import read_oi as oi   # noqa: E402 - reads IMAGINE_OI_FEED at import
+# IMAGINE's data folder (the feed lives in its feeds/cme_oi): source of the FF meeting pricing
+IMAGINE_DATA = pathlib.Path(os.environ.get('IMAGINE_DATA') or pathlib.Path(os.environ['IMAGINE_OI_FEED']).parents[1])
 
 MARKETS = ('SR3', 'FF')
 # the dashboard's "treasuries" market: one row per tenor = the first two listed contracts' OI added
@@ -74,7 +76,23 @@ def build_payload(manifest):
     if tsy:
         markets['treasuries'], reports['treasuries'] = tsy, rep
     return {'generated_at': manifest['generated_at'], 'markets': markets, 'reports': reports,
-            'prices': prices, 'volumes': volumes}
+            'prices': prices, 'volumes': volumes, 'ff_meetings': ff_meetings()}
+
+
+def ff_meetings():
+    """IMAGINE's per-FOMC-meeting pricing from FF settles, newest sessions only:
+    {'dd/mm/yy': [{meeting: 'dd/mm/yy', via, move, path, type}]} - move / path in bp, + = hike."""
+    p = IMAGINE_DATA / 'ff_meetings.parquet'
+    if not p.exists():
+        return {}
+    import pandas as pd
+    df = pd.read_parquet(p, columns=['date', 'meeting', 'move', 'via', 'path', 'type'])
+    df['date'] = pd.to_datetime(df['date'])
+    df = df[df.date.isin(sorted(df.date.unique())[-SIDE_SESSIONS:])].dropna(subset=['move', 'path'])
+    return {d.strftime('%d/%m/%y'): [{'meeting': pd.Timestamp(r.meeting).strftime('%d/%m/%y'), 'via': str(r.via),
+                                      'move': round(float(r.move), 2), 'path': round(float(r.path), 2), 'type': str(r.type)}
+                                     for r in g.sort_values('meeting').itertuples()]
+            for d, g in df.groupby('date')}
 
 
 def main():

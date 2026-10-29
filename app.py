@@ -366,6 +366,11 @@ def apply_cme(current, cme):
             out['markets'][name] = dict(mk, **{key: _keep_newest(side)})
             if rows:
                 sources.setdefault(name, {})[key] = 'CME'
+    # FF: per-session FOMC meeting pricing (IMAGINE), newest few sessions
+    meetings = (cme or {}).get('ff_meetings') or {}
+    if meetings and 'FF' in out['markets']:
+        keep = sorted((d for d in meetings if _ddmmyy_key(d)), key=_ddmmyy_key, reverse=True)[:SIDE_KEEP]
+        out['markets']['FF'] = dict(out['markets']['FF'], meetings={d: meetings[d] for d in keep})
     out['sources'] = sources
     # newest session of any market and source - what the share title and the Live/Stale dot show;
     # latest_date stays the workbook's, which Pre vs Final matches its snapshots against
@@ -615,11 +620,22 @@ def api_cme_oi():
             side[key][name] = {d: {str(c)[:40]: float(v) for c, v in vals.items()
                                    if isinstance(v, (int, float)) and not isinstance(v, bool)}
                                for d, vals in rows.items() if _ddmmyy_key(d) and isinstance(vals, dict)}
+    # IMAGINE's FOMC meeting pricing from FF settles: {'dd/mm/yy': [{meeting, via, move, path, type}]} (optional)
+    meetings = {}
+    for d, rows in (body.get('ff_meetings') or {}).items():
+        if not _ddmmyy_key(d) or not isinstance(rows, list):
+            continue
+        meetings[d] = [{'meeting': str(r.get('meeting', ''))[:8], 'via': str(r.get('via', ''))[:12],
+                        'move': float(r['move']), 'path': float(r['path']), 'type': str(r.get('type', ''))[:12]}
+                       for r in rows[:40] if isinstance(r, dict) and _ddmmyy_key(r.get('meeting'))
+                       and isinstance(r.get('move'), (int, float)) and isinstance(r.get('path'), (int, float))]
     stored = load_cme() or {'markets': {}}
     stored['markets'].update(clean)
     stored.setdefault('reports', {}).update(reports)
     for key, rows in side.items():
         stored.setdefault(key, {}).update(rows)
+    if meetings:
+        stored['ff_meetings'] = meetings
     stored['generated_at'] = str(body.get('generated_at', ''))[:40]
     stored['pushed_at'] = datetime.utcnow().isoformat() + 'Z'
     tmp = CME_FILE + '.tmp'

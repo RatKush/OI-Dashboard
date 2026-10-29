@@ -258,6 +258,8 @@ table.grid thead th.pvf-mkt{text-align:left;padding:8px 10px}
 .kpi .kv{font-family:var(--mono);font-size:19px;font-weight:800;color:var(--ink);line-height:1.25}
 .kpi .kv.word{font-family:var(--sans);font-size:17px}
 .kpi .kv.up{color:var(--pos)} .kpi .kv.down{color:var(--neg)}
+.kpi .kchg{font-size:12.5px;font-weight:800;margin-left:10px;padding:1px 7px;border-radius:999px;background:var(--chip);color:var(--muted);vertical-align:3px}
+.kpi .kchg.up{background:#e3f4ec;color:var(--pos)} .kpi .kchg.down{background:#fbe6e4;color:var(--neg)}
 .kpi .ks{font-size:11px;color:var(--ink-soft)}
 .st-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .st-row .k{font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);min-width:96px}
@@ -1196,7 +1198,26 @@ function opxFlow(rs){
   return Object.keys(w).sort((a,b)=>w[b]-w[a])[0]||null;
 }
 
-function opxStory(m,rows,packs,conv,d0,d1){
+// FF covers about a year of meetings: read it as one Fed path from IMAGINE's per-meeting pricing
+// (move / path in bp, + = hike), limited to meetings whose contract pair is on the strip shown.
+function ffPathRead(mk,rows,d0,d1){
+  const M=mk.meetings||{}, a=M[d0], b=M[d1]; if(!a||!b) return null;
+  const shown=new Set(rows.map(r=>r.ct)), prev=new Map(b.map(x=>[x.meeting,x]));
+  const ms=a.filter(x=>String(x.via).split('/').every(c=>shown.has(c))).map(x=>{ const y=prev.get(x.meeting);
+    return {...x, dMove:y?x.move-y.move:null, dPath:y?x.path-y.path:null}; });
+  if(!ms.length) return null;
+  const s0=parseD(d0);
+  return {ms, next:ms.find(x=>parseD(x.meeting)>s0)||null, last:ms[ms.length-1],
+    big:ms.filter(x=>x.dPath!=null).reduce((z,x)=>(!z||Math.abs(x.dPath)>Math.abs(z.dPath))?x:z,null)};
+}
+const fmtMonYY=s=>{ const d=parseD(s); return d?d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}):s; };
+const fmtDayMon=s=>{ const d=parseD(s); return d?d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}):s; };
+function ffOdds(mv){   // priced move as odds of a 25bp step
+  const kind=mv>=0?'hike':'cut', a=Math.abs(mv)/25;
+  return a<=1?Math.round(a*100)+'% of a 25bp '+kind:'25bp '+kind+' + '+Math.round((a-1)*100)+'% of another';
+}
+
+function opxStory(m,mk,rows,packs,conv,d0,d1){
   const live=rows.filter(r=>r.dOI!=null&&r.dPx!=null);
   if(!live.length) return '';
   const net=live.reduce((a,r)=>a+r.dOI,0);
@@ -1218,7 +1239,7 @@ function opxStory(m,rows,packs,conv,d0,d1){
     fbp(cr.lead.dr)+(isVol?'':' in rate')+(cr.lead.where?')':''));
   const t=Math.max(1,Math.floor(live.length/3)), ff=opxFlow(live.slice(0,t)), bf=live.length>3?opxFlow(live.slice(-t)):null;
   const flow=[ff?'front '+esc(sigLabel(ff,conv).toLowerCase()):'', bf?'back '+esc(sigLabel(bf,conv).toLowerCase()):''].filter(Boolean).join(', ');
-  const head=bits.join(' · ')+(flow?'<span class="st-flow"> — '+flow+'</span>':'');
+  let head=bits.join(' · ')+(flow?'<span class="st-flow"> — '+flow+'</span>':'');
 
   // front of the curve: the first pack (Whites / first FF quarter), or the first 4 contracts where there are no packs;
   // the sub-line adds the single biggest contract move anywhere on the curve
@@ -1232,10 +1253,35 @@ function opxStory(m,rows,packs,conv,d0,d1){
   let k=kpi('Front · '+(isVol?'vol':'rates'), esc(fmtPx(toR(frontPx),conv))+'<small style="font-size:12px;font-weight:700"> '+esc(conv.unit)+'</small>', rc(toR(frontPx)),
     frontLbl+'<br>max move <b>'+esc(shortName(mx.ct))+'</b> <span class="num '+rc(toR(mx.dPx))+'">'+fbp(toR(mx.dPx))+'</span> · '+
     nUp+' up · '+nDn+' down');
-  if(cr.twist!=null)
+  if(cr.twist!=null && m!=='FF')   // FF is about a year of meetings: no curve read
     k+=kpi('Curve (rates)', cr.shape?(cr.kind?cr.kind+' ':'')+cr.shape:'Parallel', 'word',
       'front <span class="num '+rcls(cr.front)+'">'+fbp(cr.front)+'</span> · back <span class="num '+rcls(cr.back)+'">'+fbp(cr.back)+'</span>'+
       ' · fitted twist <span class="num">'+fbp(cr.twist)+'</span>'+(cr.pivot&&cr.kind==='Twist'?' · pivot '+esc(cr.pivot):''));
+  if(m==='FF'){
+    const fr=ffPathRead(mk,live,d0,d1), sgn=v=>(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(1);
+    const all=opxFlow(live), word=v=>v>=0?'hikes':'cuts';
+    const flowAll=all?'<span class="st-flow"> — '+esc(sigLabel(all,conv).toLowerCase())+' across the strip</span>':'';
+    if(fr){
+      const b=fr.big, tone=b&&Math.abs(b.dPath)>=conv.flat?(b.dPath>0?'Hawkish repricing':'Dovish repricing'):'Fed path little changed';
+      head=tone+(b&&Math.abs(b.dPath)>=conv.flat?' · Δ '+word(b.path)+' '+sgn(b.dPath)+'bp by '+esc(fmtMonYY(b.meeting)):'')+
+        (fr.next?' · '+esc(fmtDayMon(fr.next.meeting))+' meeting '+sgn(fr.next.move)+'bp ('+esc(ffOdds(fr.next.move))+')':'')+flowAll;
+      const L=fr.last;
+      // change vs the previous session next to the level: ▲ more hikes priced (red) · ▼ fewer (green)
+      const chg=d=>d==null?'':'<span class="kchg '+rcls(d)+'">'+(Math.abs(d)<0.05?'= 0.0':(d>0?'▲ ':'▼ ')+Math.abs(d).toFixed(1))+'</span>';
+      const bp='<small style="font-size:12px;font-weight:700"> bp</small>';
+      k=kpi(esc(word(L.path).replace(/^./,c=>c.toUpperCase()))+' priced · to '+esc(fmtMonYY(L.meeting)),
+          esc(Math.abs(L.path).toFixed(0))+bp+chg(L.dPath), '',
+          (L.dPath==null?'':'yesterday '+esc(Math.abs(L.path-L.dPath).toFixed(0))+'bp')+
+          (b&&b!==L?' · most repriced <b>'+esc(fmtMonYY(b.meeting))+'</b> <span class="num '+rcls(b.dPath)+'">'+sgn(b.dPath)+'bp</span>':'')+
+          '<br>'+fr.ms.length+' meetings to '+esc(fmtDayMon(L.meeting))+' '+esc(fmtMonYY(L.meeting).slice(-2)));
+      if(fr.next) k+=kpi('Next FOMC · '+esc(fmtDayMon(fr.next.meeting)), sgn(fr.next.move)+bp+chg(fr.next.dMove),
+          '', esc(ffOdds(fr.next.move))+
+          (fr.next.dMove==null?'':' · yesterday '+esc(sgn(fr.next.move-fr.next.dMove))+'bp')+'<br>read from '+esc(fr.next.via));
+    } else {   // no meeting pricing for these sessions: say only which way the strip moved
+      const avgR=-live.reduce((a,r)=>a+r.dPx,0)/live.length;
+      head=(Math.abs(avgR)<conv.flat?'Fed path little changed':avgR>0?'Hawkish move':'Dovish move')+' · strip '+sgn(avgR)+'bp in rate'+flowAll;
+    }
+  }
   k+=kpi('Net Δ OI', esc(fmtSigned(net)), cls(net), live.length+' contracts');
   let s='<div class="st-head"><b class="st-take">'+head+'</b></div><div class="st-kpis">'+k+'</div>';
   const big=live.filter(r=>r.sig&&r.sig!=='flat').sort((a,b)=>Math.abs(b.dOI)-Math.abs(a.dOI)).slice(0,3);
@@ -1265,8 +1311,8 @@ function renderOiPx(c){
     (d0?'<span title="each side pairs one date: the settle and the OI of that same session">Settle + OI '+esc(d0)+' vs '+esc(d1||'—')+'</span><span class="badge'+(oiPass==='pre'?' pre':'')+'" title="'+
       (oiPass==='pre'?'Preliminary OI — the Final can change ΔOI and so the read':'Final OI')+'">'+(oiPass==='pre'?'Prelim':'Final')+'</span>'+
       '<span class="badge" title="where the settlement prices come from">Px '+pxSrc+'</span>':'')+'</div></div>';
-  // plot, table, packs and story all cover the first OPX_N contracts in curve order
-  const allRows=(d0&&d1)?opxRows(m,mk,d0,d1,conv):[], rows=allRows.slice(0,OPX_N);
+  // plot, table, packs and story all cover the first OPX_N contracts in curve order (FF: OPX_N_FF)
+  const allRows=(d0&&d1)?opxRows(m,mk,d0,d1,conv):[], rows=allRows.slice(0,m==='FF'?OPX_N_FF:OPX_N);
   const withPx=rows.filter(r=>r.dPx!=null).length;
   if(!withPx){
     const have=Object.values(mk.prices||{}).flatMap(o=>Object.keys(o||{}).filter(d=>o[d]!=null));
@@ -1289,7 +1335,7 @@ function renderOiPx(c){
   h+='<div class="opx-legend">'+['nl','ns','sc','ll','flat'].map(k=>sigChip(k,conv,'<b>'+(counts[k]||0)+'</b>')).join('')+
     '<span style="color:var(--muted)">· small move = |ΔPx| &lt; '+conv.flat+conv.unit+' or |ΔOI| &lt; max('+OPX_FLAT_OI.toLocaleString('en-US')+', '+OPX_FLAT_PCT*100+'% of OI)</span></div>';
   h+='<div class="opx-charts"><div class="opx-chart"><canvas id="opx-oi"></canvas></div></div>';
-  h+=opxStory(m,rows,packs,conv,d0,d1);   // the day's story sits below the plot
+  h+=opxStory(m,mk,rows,packs,conv,d0,d1);   // the day's story sits below the plot
   if(packs.length){   // per-pack summary; contract detail is in the plot's tooltip
     const dc=v=>v>0?'up':(v<0?'down':'flat');
     h+='<div class="tbl-wrap"><table class="grid"><thead><tr><th class="lbl">Pack</th><th>Δ Px avg ('+esc(conv.unit)+')</th>'+
@@ -1310,7 +1356,7 @@ function renderOiPx(c){
   c.innerHTML=h;
   opxCharts(rows,conv);
 }
-const OPX_N=20;   // contracts shown (front of the curve)
+const OPX_N=20, OPX_N_FF=15;   // contracts shown (front of the curve)
 // one plot: ΔOI bars (left axis, each in its read's colour) with the ΔPx series as a line (right axis).
 // Both axes put zero at the same height, so a bar and the line cross zero together.
 // Both axes share one set of gridlines: the same number of round steps below and above zero,
