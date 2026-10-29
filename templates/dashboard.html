@@ -245,6 +245,47 @@ table.grid thead th.pvf-mkt{text-align:left;padding:8px 10px}
 .pvf-market-hd td{background:#eef1f6 !important;color:var(--slate);font-weight:800;
   letter-spacing:.12em;text-transform:uppercase;font-size:10.5px}
 
+/* ---------- Chg OI vs Chg Price ---------- */
+.opx-story{padding:14px 16px 16px;border-top:1px solid var(--line);background:linear-gradient(180deg,#f7f9fc 0%,#fff 100%);
+  color:var(--ink);display:flex;flex-direction:column;gap:12px}
+.st-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.st-head b{font-size:15px;font-weight:800;color:var(--navy)}
+.st-head .st-flow{font-weight:600;color:var(--ink-soft)}
+.st-head span{font-size:11.5px;color:var(--muted)}
+.st-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 12px;display:flex;flex-direction:column;gap:2px}
+.kpi .kl{font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.kpi .kv{font-family:var(--mono);font-size:19px;font-weight:800;color:var(--ink);line-height:1.25}
+.kpi .kv.word{font-family:var(--sans);font-size:17px}
+.kpi .kv.up{color:var(--pos)} .kpi .kv.down{color:var(--neg)}
+.kpi .ks{font-size:11px;color:var(--ink-soft)}
+.st-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.st-row .k{font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);min-width:96px}
+.mv{display:inline-flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--c);
+  border-radius:7px;padding:6px 11px;font-size:12px}
+.mv b{font-size:12.5px}
+.mv .mv-sig{color:var(--ink-soft);font-weight:600}
+.mv .num{font-weight:700}
+.pk{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 11px 3px 4px;font-size:11.5px;color:var(--ink-soft)}
+.pk .pack-chip{margin-left:0;border-radius:999px;padding:2px 8px}
+.pk i{width:8px;height:8px;border-radius:2px;flex:none}
+.pk.quiet{color:var(--muted)}
+.sig{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:var(--ink);white-space:nowrap}
+.sig i{width:9px;height:9px;border-radius:2px;flex:none}
+.sig.flat{color:var(--muted)}
+.opx-legend{display:flex;gap:6px 18px;flex-wrap:wrap;align-items:center;padding:10px 16px 0;font-size:11px;color:var(--ink-soft)}
+.opx-legend .sig b{font-family:var(--mono);color:var(--muted);font-weight:700;margin-left:2px}
+.opx-charts{padding:6px 16px 10px}
+.opx-chart{height:340px;position:relative}
+.opx-line{display:inline-block;width:18px;height:0;border-top:2px solid #1b2c47;vertical-align:3px;margin:0 2px}
+.opx-cap{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin:8px 0 2px}
+.badge{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.08em;padding:2px 6px;border-radius:3px;
+  background:rgba(255,255,255,.16);color:#eaf1fb;margin-left:6px;text-transform:uppercase}
+.badge.pre{background:#f0b429;color:#3a2a00}
+table.grid tr.pack-row td{background:#eef1f6 !important;font-weight:700}
+.opx-sub{padding:8px 16px;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--slate);
+  background:#eef1f6;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+
 /* ---------- misc ---------- */
 .loading,.empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
 .tip{position:fixed;pointer-events:none;z-index:100;background:var(--navy);color:#eaf1fb;
@@ -284,6 +325,7 @@ table.grid thead th.pvf-mkt{text-align:left;padding:8px 10px}
   <div class="viewtoggle">
     <div class="seg" id="seg">
       <button data-v="heatmap" class="active">▦ Heat-map</button>
+      <button data-v="oipx">📊 Δ OI vs Δ Price</button>
       <button data-v="series">📈 Series</button>
       <button data-v="pvf">◈ Pre vs Final</button>
     </div>
@@ -393,7 +435,7 @@ const hhmm=()=>new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2
 async function fetchData(){
   let r, d;
   try{   // only the network part can make the dot red — a rendering bug must not read as "Offline"
-    r = await fetch('/api/dashboard-data',{cache:'no-store'});
+    r = await fetch('/api/dashboard-data',{cache:'no-cache'});   // revalidates: unchanged data comes back as a body-less 304
     if(!r.ok) throw new Error('HTTP '+r.status);
     d = await r.json();
   }catch(e){
@@ -417,6 +459,7 @@ async function fetchData(){
   if(S.urlSort){ S.sort[S.active]=S.urlSort; S.urlSort=null; }
   S.meta = { latest:d.latest_date, isFinal:d.is_final===true, updated:d.updated_at };
   S.pvf = null;   // re-check Pre vs Final on every refresh, so "waiting" flips to the comparison by itself
+  S.sources = d.sources||{};
   S.fresh = freshness(d.sources||{}, d.cme_pushed_at);
   $('#m-date').textContent = S.fresh.newest||d.latest_date||'—';
   $('#m-mkts').textContent = d.markets_count ?? S.order.length;
@@ -496,7 +539,7 @@ function killCharts(){
 
 /* ============================ URL STATE ============================ */
 // shareable link to the current page + sort, e.g. ?m=SR3&sort=pct-1D-desc · ?m=FF&v=series · ?v=pvf&sort=delta-desc
-const VIEWS=['heatmap','series','pvf'];
+const VIEWS=['heatmap','oipx','series','pvf'];
 function sortToParam(s){
   if(s.key==='latest') return 'latest-'+s.dir;
   return (s.key[0]==='n'?'abs':'pct')+'-'+HZ[+s.key.slice(1)][0]+'-'+s.dir;
@@ -526,6 +569,7 @@ function render(){
   if(!S.active){ c.innerHTML='<div class="card"><div class="empty">No markets available.</div></div>'; return; }
   syncUrl();
   if(S.view==='heatmap') renderHeatmap(c);
+  else if(S.view==='oipx') renderOiPx(c);
   else if(S.view==='series') renderSeries(c);
   else renderPvf(c);
 }
@@ -1033,6 +1077,314 @@ function exportPvfPng(p,order,pre,fin){
       .then(()=>flash('#pvf-png','✓ Copied'))
       .catch(download);
   } else download();
+}
+
+/* ============================ CHG OI vs CHG PRICE ============================ */
+// One session against the one before: did the day's price move come with positions opened or closed?
+// mult turns a price change into the unit shown; flat = smallest move (in that unit) that counts.
+// Brazil DI1 is quoted as a rate, so its "price" up is a rate up and the labels speak in payers / receivers.
+const PX_CONV={
+  stir:{mult:100,unit:'bp',dp:1,flat:1,note:'price ↑ = rates ↓'},
+  brazil:{mult:100,unit:'bp',dp:1,flat:1,rate:true,note:'quoted as a rate · rate ↑ = DI price ↓'},
+  treasuries:{mult:32,unit:'/32',dp:1,flat:0.5,note:'front contract per tenor, OI = first two contracts · price ↑ = yields ↓'},
+  vol:{mult:1,unit:'pts',dp:2,flat:0.05,note:'vol points'}
+};
+const pxConv=m=>/brazil|brl/i.test(m)?PX_CONV.brazil:/treas|tnote|tbond/i.test(m)?PX_CONV.treasuries
+  :/vix|voxx|vstoxx/i.test(m)?PX_CONV.vol:PX_CONV.stir;
+// quoted price up/down × OI up/down; colours validated as a set (each always shown with its label)
+const SIG={
+  nl:{col:'#1f9d6b',px:'New longs',rate:'New payers'},           // price ↑ OI ↑
+  sc:{col:'#2a78d6',px:'Short covering',rate:'Receivers cover'},  // price ↑ OI ↓
+  ns:{col:'#cf3f38',px:'New shorts',rate:'New receivers'},       // price ↓ OI ↑
+  ll:{col:'#e08a1e',px:'Long liquidation',rate:'Payers unwind'},  // price ↓ OI ↓
+  flat:{col:'#b8c2d1',px:'Small move',rate:'Small move'}
+};
+const sigLabel=(k,conv)=>SIG[k][conv.rate?'rate':'px'];
+const OPX_FLAT_OI=1000, OPX_FLAT_PCT=0.005;   // ΔOI below max(1,000 contracts, 0.5% of OI) is a small move
+function sigOf(dOI,dPx,oiPrev,conv){
+  if(dOI==null||dPx==null) return null;
+  if(Math.abs(dPx)<conv.flat || Math.abs(dOI)<Math.max(OPX_FLAT_OI,OPX_FLAT_PCT*Math.abs(oiPrev||0))) return 'flat';
+  return dPx>0?(dOI>0?'nl':'sc'):(dOI>0?'ns':'ll');
+}
+const numOr=v=>(v==null||v===''||!isFinite(+v))?null:+v;
+function fmtPx(v,conv){ if(v==null) return '·'; const s=v.toFixed(conv.dp); return Number(s)===0?(0).toFixed(conv.dp):(v>0?'+':'−')+Math.abs(v).toFixed(conv.dp); }
+function sigChip(k,conv,extra){
+  if(!k) return '<span class="sig flat">·</span>';
+  return '<span class="sig'+(k==='flat'?' flat':'')+'"><i style="background:'+SIG[k].col+'"></i>'+esc(sigLabel(k,conv))+(extra||'')+'</span>';
+}
+
+// the two newest real sessions; a newest column that only repeats the one before (not yet updated) is skipped
+function opxSessions(mk){
+  const ds=cleanDates(mk.dates||[]), cs=mk.contracts||[];
+  const repeats=(a,b)=>{ let n=0,eq=0; cs.forEach(c=>{ const x=mk.data[c]?.[a], y=mk.data[c]?.[b];
+    if(x!=null&&y!=null){ n++; if(+x===+y) eq++; } }); return n>=3&&eq===n; };
+  let i=0, skipped=null;
+  if(ds.length>2 && repeats(ds[0],ds[1])){ skipped=ds[0]; i=1; }
+  return {d0:ds[i]||null, d1:ds[i+1]||null, skipped};
+}
+function opxRows(m,mk,d0,d1,conv){
+  const cs=mk.contracts||[];
+  // each side is one session: the settle and the OI of d0 against the settle and the OI of d1 — never mixed days.
+  // generic rows: on a roll day today's row k was yesterday's row k+1 (same test the Series view uses)
+  const rolled=rollIdx(mk,[d1,d0]).has(1);
+  return cs.map((ct,ri)=>{
+    const prev=rolled?cs[ri+1]:ct;
+    const oi0=numOr(mk.data[ct]?.[d0]), oi1=prev!=null?numOr(mk.data[prev]?.[d1]):null;
+    const p0=numOr(mk.prices?.[ct]?.[d0]), p1=prev!=null?numOr(mk.prices?.[prev]?.[d1]):null;
+    const vol=numOr(mk.volume?.[ct]?.[d0]);
+    const dOI=(oi0!=null&&oi1!=null)?oi0-oi1:null;
+    const dPx=(p0!=null&&p1!=null)?Math.round((p0-p1)*conv.mult*100)/100:null;
+    return {ct,ri,oi0,oi1,p0,dOI,dPx,vol,
+      pc:pct(oi0,oi1), stick:(dOI!=null&&vol)?dOI/vol*100:null,
+      sig:sigOf(dOI,dPx,oi1,conv), pk:packOf(m,cs,ri)};
+  }).filter(r=>r.oi0!=null||r.p0!=null);
+}
+// packs (SR3/ER/SONIA/CORRA colour packs, FF quarters): ΔOI summed, ΔPx averaged
+function opxPacks(rows,conv){
+  const by=new Map();
+  rows.forEach(r=>{ if(!r.pk) return; let p=by.get(r.pk.g);
+    if(!p) by.set(r.pk.g,p={g:r.pk.g,label:r.pk.label,dOI:null,oi1:0,px:[],vol:null,n:0,first:r.ct});
+    p.n++; p.last=r.ct;
+    if(r.dOI!=null){ p.dOI=(p.dOI||0)+r.dOI; p.oi1+=r.oi1; }
+    if(r.dPx!=null) p.px.push(r.dPx);
+    if(r.vol!=null) p.vol=(p.vol||0)+r.vol; });
+  return [...by.values()].map(p=>{ const dPx=p.px.length?p.px.reduce((a,b)=>a+b,0)/p.px.length:null;
+    return Object.assign(p,{dPx, stick:(p.dOI!=null&&p.vol)?p.dOI/p.vol*100:null, sig:sigOf(p.dOI,dPx,p.oi1,conv)}); });
+}
+// one paragraph: the day in a line, the biggest moves, then the packs (runs of the same read merged)
+// Reads the whole curve in rate terms (Δr: + = rates up; price-quoted futures flip the sign of ΔPx).
+//  level  : average Δr → bull (rates down) / bear (rates up)
+//  shape  : least-squares slope of Δr along the curve, front→back → steepener / flattener;
+//           front and back thirds moving opposite ways → twist, pivoting where Δr changes sign
+//  tone   : front pack's Δr → dovish (down) / hawkish (up)
+//  leader : pack (or contract) with the largest |Δr|, placed as front / belly / back
+function opxCurveRead(rows,packs,conv){
+  const pts=rows.map((r,i)=>({i,r,dr:r.dPx==null?null:(conv.rate?r.dPx:-r.dPx)})).filter(p=>p.dr!=null);
+  if(pts.length<2) return null;
+  const n=pts.length, avg=pts.reduce((a,p)=>a+p.dr,0)/n, out={avg};
+  out.level=Math.abs(avg)<conv.flat?null:(avg>0?'Bear':'Bull');
+  const rateCurve=conv!==PX_CONV.vol && conv!==PX_CONV.treasuries;   // Treasury tenors move by duration, not comparable in price
+  const segs=packs.length?packs.map(p=>({label:p.label,dr:p.dPx==null?null:(conv.rate?p.dPx:-p.dPx)}))
+                         :pts.map(p=>({label:shortName(p.r.ct),dr:p.dr}));
+  const lead=segs.filter(x=>x.dr!=null).reduce((a,x)=>(!a||Math.abs(x.dr)>Math.abs(a.dr))?x:a,null);
+  if(lead && Math.abs(lead.dr)>=conv.flat){
+    const k=segs.indexOf(lead), third=segs.length/3;
+    out.lead={...lead, where:segs.length<3?'':k<third?'front':k>=segs.length-third?'back':'belly'};
+  }
+  if(!rateCurve || n<4) return out;
+  const mx=pts.reduce((a,p)=>a+p.i,0)/n;
+  const slope=pts.reduce((a,p)=>a+(p.i-mx)*(p.dr-avg),0)/(pts.reduce((a,p)=>a+(p.i-mx)**2,0)||1);
+  const twist=slope*(pts[n-1].i-pts[0].i);   // fitted back minus fitted front, bp
+  const t=Math.max(1,Math.floor(n/3));
+  const mean=a=>a.reduce((x,p)=>x+p.dr,0)/a.length;
+  out.front=mean(pts.slice(0,t)); out.back=mean(pts.slice(-t)); out.twist=twist;
+  if(Math.abs(twist)>=2*conv.flat){
+    out.shape=twist>0?'steepener':'flattener';
+    if(Math.sign(out.front)!==Math.sign(out.back) && Math.abs(out.front)>=conv.flat/2 && Math.abs(out.back)>=conv.flat/2){
+      out.kind='Twist';
+      const pv=pts.findIndex((p,k)=>k>0 && p.dr!==0 && Math.sign(p.dr)!==Math.sign(pts[k-1].dr));
+      if(pv>0) out.pivot=shortName(pts[pv].r.ct);
+    } else out.kind=out.level||'';
+  }
+  const fp=packs.length?packs[0]:null, fdr=(fp&&fp.dPx!=null)?(conv.rate?fp.dPx:-fp.dPx):out.front;
+  if(Math.abs(fdr)>=conv.flat) out.tone=fdr>0?'hawkish':'dovish';
+  return out;
+}
+// dominant read (by |ΔOI|) among a run of contracts
+function opxFlow(rs){
+  const w={}; rs.forEach(r=>{ if(r.sig&&r.sig!=='flat'&&r.dOI!=null) w[r.sig]=(w[r.sig]||0)+Math.abs(r.dOI); });
+  return Object.keys(w).sort((a,b)=>w[b]-w[a])[0]||null;
+}
+
+function opxStory(m,rows,packs,conv,d0,d1){
+  const live=rows.filter(r=>r.dOI!=null&&r.dPx!=null);
+  if(!live.length) return '';
+  const net=live.reduce((a,r)=>a+r.dOI,0);
+  const up=live.filter(r=>r.dPx>=conv.flat).length, dn=live.filter(r=>r.dPx<=-conv.flat).length;
+  const cls=v=>v>0?'up':(v<0?'down':'');
+  const rcls=v=>v>0?'down':(v<0?'up':'');   // in rate terms: rates up = price down (red)
+  const fbp=v=>esc(fmtPx(v,conv))+esc(conv.unit);
+  const kpi=(label,val,valCls,sub)=>'<div class="kpi"><span class="kl">'+label+'</span><span class="kv '+valCls+'">'+val+'</span><span class="ks">'+sub+'</span></div>';
+  const isVol=conv===PX_CONV.vol;
+  const cr=opxCurveRead(live,packs,conv)||{};
+
+  // headline: regime · tone · leader — then where the flow was
+  const regime=isVol?(cr.level?(cr.level==='Bear'?'Vol bid':'Vol offered'):'Vol little changed')
+    :cr.shape?((cr.kind?cr.kind+' ':'')+cr.shape+(cr.kind==='Twist'&&cr.pivot?' around '+esc(cr.pivot):''))
+    :cr.level?cr.level+' move'+(cr.lead?.where==='belly'?'':', parallel'):'Rates little changed';
+  const bits=[regime.charAt(0).toUpperCase()+regime.slice(1)];
+  if(cr.tone && !isVol) bits.push(cr.tone+' front end');
+  if(cr.lead) bits.push('led by '+(cr.lead.where?'the '+cr.lead.where+' (':'')+esc(cr.lead.label)+' '+
+    fbp(cr.lead.dr)+(isVol?'':' in rate')+(cr.lead.where?')':''));
+  const t=Math.max(1,Math.floor(live.length/3)), ff=opxFlow(live.slice(0,t)), bf=live.length>3?opxFlow(live.slice(-t)):null;
+  const flow=[ff?'front '+esc(sigLabel(ff,conv).toLowerCase()):'', bf?'back '+esc(sigLabel(bf,conv).toLowerCase()):''].filter(Boolean).join(', ');
+  const head=bits.join(' · ')+(flow?'<span class="st-flow"> — '+flow+'</span>':'');
+
+  // front of the curve: the first pack (Whites / first FF quarter), or the first 4 contracts where there are no packs;
+  // the sub-line adds the single biggest contract move anywhere on the curve
+  const fp=packs.find(p=>p.dPx!=null), f4=live.slice(0,4);
+  const frontPx=fp?fp.dPx:f4.reduce((a,r)=>a+r.dPx,0)/f4.length;
+  const frontLbl=fp?esc(fp.label)+' · '+esc(fp.first+(fp.last!==fp.first?'–'+fp.last:'')):esc(shortName(f4[0].ct)+'–'+shortName(f4[f4.length-1].ct));
+  const mx=live.reduce((a,r)=>(!a||Math.abs(r.dPx)>Math.abs(a.dPx))?r:a,null);
+  // shown in rate terms (price-quoted futures flip sign); vol stays in vol points
+  const toR=v=>(isVol||conv.rate)?v:-v, rc=isVol?cls:rcls;
+  const nUp=isVol||conv.rate?up:dn, nDn=isVol||conv.rate?dn:up;
+  let k=kpi('Front · '+(isVol?'vol':'rates'), esc(fmtPx(toR(frontPx),conv))+'<small style="font-size:12px;font-weight:700"> '+esc(conv.unit)+'</small>', rc(toR(frontPx)),
+    frontLbl+'<br>max move <b>'+esc(shortName(mx.ct))+'</b> <span class="num '+rc(toR(mx.dPx))+'">'+fbp(toR(mx.dPx))+'</span> · '+
+    nUp+' up · '+nDn+' down');
+  if(cr.twist!=null)
+    k+=kpi('Curve (rates)', cr.shape?(cr.kind?cr.kind+' ':'')+cr.shape:'Parallel', 'word',
+      'front <span class="num '+rcls(cr.front)+'">'+fbp(cr.front)+'</span> · back <span class="num '+rcls(cr.back)+'">'+fbp(cr.back)+'</span>'+
+      ' · fitted twist <span class="num">'+fbp(cr.twist)+'</span>'+(cr.pivot&&cr.kind==='Twist'?' · pivot '+esc(cr.pivot):''));
+  k+=kpi('Net Δ OI', esc(fmtSigned(net)), cls(net), live.length+' contracts');
+  let s='<div class="st-head"><b class="st-take">'+head+'</b></div><div class="st-kpis">'+k+'</div>';
+  const big=live.filter(r=>r.sig&&r.sig!=='flat').sort((a,b)=>Math.abs(b.dOI)-Math.abs(a.dOI)).slice(0,3);
+  if(big.length) s+='<div class="st-row"><span class="k">Biggest moves</span>'+big.map(r=>
+    '<span class="mv" style="--c:'+SIG[r.sig].col+'"><b>'+esc(shortName(r.ct))+'</b><span class="mv-sig">'+esc(sigLabel(r.sig,conv))+'</span>'+
+    '<span class="num '+cls(r.dOI)+'">'+esc(fmtSigned(r.dOI))+'</span><span class="num '+cls(r.dPx)+'">'+fbp(r.dPx)+'</span></span>').join('')+'</div>';
+  const pk=packs.filter(p=>p.sig);
+  if(pk.length){
+    const runs=[]; pk.forEach(p=>{ const l=runs[runs.length-1];
+      if(l&&l.sig===p.sig&&l.last===p.g-1){ l.to=p; l.last=p.g; } else runs.push({sig:p.sig,from:p,to:null,last:p.g}); });
+    const chip=p=>{ const pal=PACKS[p.g%PACKS.length]; return '<span class="pack-chip" style="background:'+pal[1]+';color:'+pal[2]+'">'+esc(p.label)+'</span>'; };
+    s+='<div class="st-row"><span class="k">Packs</span>'+runs.map(r=>
+      '<span class="pk'+(r.sig==='flat'?' quiet':'')+'">'+chip(r.from)+(r.to?'–'+chip(r.to):'')+
+      (r.sig==='flat'?'quiet':'<i style="background:'+SIG[r.sig].col+'"></i>'+esc(sigLabel(r.sig,conv)))+'</span>').join('')+'</div>';
+  }
+  return '<div class="opx-story">'+s+'</div>';
+}
+
+function renderOiPx(c){
+  const m=S.active, mk=S.markets[m]; if(!mk){c.innerHTML='';return;}
+  const conv=pxConv(m), {d0,d1,skipped}=opxSessions(mk);
+  const f=S.fresh?.per[m]||{}, src=S.sources?.[m]||{};
+  const pxSrc=src.prices==='CME'?'CME':'Bloomberg';
+  const oiPass=(f.src==='CME'&&d0===f.latest)?(f.prelim?'pre':'final'):(S.meta?.isFinal?'final':'pre');
+  const title=esc(MARKET_LABELS[m]||m)+'<small>Δ OI vs Δ Price · last session · '+esc(conv.note)+'</small>';
+  const hd='<div class="card"><div class="card-hd"><div class="t">'+title+'</div><div class="r">'+
+    (d0?'<span title="each side pairs one date: the settle and the OI of that same session">Settle + OI '+esc(d0)+' vs '+esc(d1||'—')+'</span><span class="badge'+(oiPass==='pre'?' pre':'')+'" title="'+
+      (oiPass==='pre'?'Preliminary OI — the Final can change ΔOI and so the read':'Final OI')+'">'+(oiPass==='pre'?'Prelim':'Final')+'</span>'+
+      '<span class="badge" title="where the settlement prices come from">Px '+pxSrc+'</span>':'')+'</div></div>';
+  // plot, table, packs and story all cover the first OPX_N contracts in curve order
+  const allRows=(d0&&d1)?opxRows(m,mk,d0,d1,conv):[], rows=allRows.slice(0,OPX_N);
+  const withPx=rows.filter(r=>r.dPx!=null).length;
+  if(!withPx){
+    const have=Object.values(mk.prices||{}).flatMap(o=>Object.keys(o||{}).filter(d=>o[d]!=null));
+    const newest=have.sort((a,b)=>parseD(b)-parseD(a))[0];
+    c.innerHTML=hd+'<div class="pvf-wait"><div class="w1">No settlement prices for '+esc(d0||'—')+' and '+esc(d1||'—')+'</div><div class="w2">'+
+      (newest?'The newest price on file is for <b>'+esc(newest)+'</b>, older than the OI. ':'This market has no prices yet. ')+
+      (/^(SR3|FF)$/.test(m)?'SR3 / FF settles come with the CME push from the PC.<br>':'')+
+      'Add a sheet named <b>'+esc(m)+'_prices_0</b> to the workbook, laid out exactly like the <b>'+esc(m)+'</b> sheet '+
+      '(same contracts, same date columns), filled with <b>PX_SETTLE</b>, then publish it again. '+
+      '<span class="w3">An optional <b>'+esc(m)+'_volume_0</b> sheet adds volume.</span></div></div></div>';
+    return;
+  }
+  const packs=opxPacks(rows,conv), hasVol=rows.some(r=>r.vol!=null);
+  const counts={}; rows.forEach(r=>{ if(r.sig) counts[r.sig]=(counts[r.sig]||0)+1; });
+  let h=hd;
+  if(skipped) h+='<div class="pvf-note" style="border-top:0;border-bottom:1px solid var(--line)">'+esc(skipped)+' repeats '+esc(d0)+
+    ' in every contract (not updated yet), so the newest real session is shown.</div>';
+  h+='<div class="opx-legend"><span class="opx-cap" style="margin:0">Bars: Δ Open Interest (contracts, left) · '+
+     '<span class="opx-line"></span> Line: Δ Price ('+esc(conv.unit)+', right)</span></div>';
+  h+='<div class="opx-legend">'+['nl','ns','sc','ll','flat'].map(k=>sigChip(k,conv,'<b>'+(counts[k]||0)+'</b>')).join('')+
+    '<span style="color:var(--muted)">· small move = |ΔPx| &lt; '+conv.flat+conv.unit+' or |ΔOI| &lt; max('+OPX_FLAT_OI.toLocaleString('en-US')+', '+OPX_FLAT_PCT*100+'% of OI)</span></div>';
+  h+='<div class="opx-charts"><div class="opx-chart"><canvas id="opx-oi"></canvas></div></div>';
+  h+=opxStory(m,rows,packs,conv,d0,d1);   // the day's story sits below the plot
+  if(packs.length){   // per-pack summary; contract detail is in the plot's tooltip
+    const dc=v=>v>0?'up':(v<0?'down':'flat');
+    h+='<div class="tbl-wrap"><table class="grid"><thead><tr><th class="lbl">Pack</th><th>Δ Px avg ('+esc(conv.unit)+')</th>'+
+      '<th class="sepL">Δ OI</th>'+(hasVol?'<th class="sepL">Volume</th><th>Δ OI ÷ Vol</th>':'')+'<th class="lbl sepL">Read</th></tr></thead><tbody>';
+    packs.forEach(p=>{ const pal=PACKS[p.g%PACKS.length];
+      h+='<tr><td class="lbl"><span class="pack-chip" style="margin-left:0;background:'+pal[1]+';color:'+pal[2]+'">'+esc(p.label)+'</span>'+
+        ' <span class="contract-sub">'+esc(p.first+(p.last!==p.first?'–'+p.last:''))+'</span></td>'+
+        '<td class="num '+dc(p.dPx)+'">'+fmtPx(p.dPx,conv)+'</td><td class="num sepL '+dc(p.dOI)+'">'+fmtSigned(p.dOI)+'</td>'+
+        (hasVol?'<td class="num sepL">'+fmtOI(p.vol)+'</td><td class="num">'+(p.stick==null?'·':fmtPct0(p.stick))+'</td>':'')+
+        '<td class="lbl sepL" style="position:static;background:transparent">'+sigChip(p.sig,conv)+'</td></tr>'; });
+    h+='</tbody></table></div>';
+  }
+  h+='<div class="legend"><span class="lg" style="color:var(--muted)">'+
+    (conv.rate?'DI1 is quoted as a rate: <b>new payers</b> = rate ↑ with OI ↑ · <b>new receivers</b> = rate ↓ with OI ↑':
+      '<b>New longs</b> = price ↑ with OI ↑ · <b>new shorts</b> = price ↓ with OI ↑ · <b>short covering</b> = price ↑ with OI ↓ · <b>long liquidation</b> = price ↓ with OI ↓')+
+    (hasVol?' · <b>Δ OI ÷ Vol</b>: share of the day\'s volume that stayed as open positions':'')+
+    ' · rows are generic, re-paired across a roll</span></div></div>';
+  c.innerHTML=h;
+  opxCharts(rows,conv);
+}
+const OPX_N=20;   // contracts shown (front of the curve)
+// one plot: ΔOI bars (left axis, each in its read's colour) with the ΔPx series as a line (right axis).
+// Both axes put zero at the same height, so a bar and the line cross zero together.
+// Both axes share one set of gridlines: the same number of round steps below and above zero,
+// so zero (and every gridline) sits at the same height on the left and the right.
+function niceStep(x){ if(!(x>0)) return 1; const e=Math.pow(10,Math.floor(Math.log10(x))), f=x/e;
+  return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*e; }
+function opxAxes(a,b){
+  const ext=v=>{ const x=v.filter(n=>n!=null); return [Math.max(0,...x.map(n=>-n)), Math.max(0,...x.map(n=>n))]; };
+  const [an,ap]=ext(a), [bn,bp]=ext(b);
+  let best=null;   // try 5–8 gridlines and every split around zero; keep the one that leaves least empty space
+  for(let N=5;N<=8;N++) for(let below=(an||bn)?1:0; below<=((an||bn)?N-1:0); below++){
+    const above=N-below; if(!above && (ap||bp)) continue;
+    const fit=(n,p)=>{ if(n&&!below) return null; const st=niceStep(Math.max(below?n/below:0, above?p/above:0)*1.04);
+      return {min:-below*st, max:above*st, step:st}; };
+    const A=fit(an,ap), B=fit(bn,bp); if(!A||!B) continue;
+    const waste=(A.max-A.min)/((an+ap)||1)+(B.max-B.min)/((bn+bp)||1);
+    if(!best || waste<best.waste-1e-9) best={waste,A,B};
+  }
+  return best?[best.A,best.B]:[{min:-1,max:1,step:1},{min:-1,max:1,step:1}];
+}
+// soft background band per pack (Whites, Reds … / FF quarters) — no hard dividers, no labels
+const hexA=(h,a)=>{ const n=parseInt(h.slice(1),16); return 'rgba('+(n>>16)+','+(n>>8&255)+','+(n&255)+','+a+')'; };
+function opxPackBands(rows){
+  const runs=[]; rows.forEach((r,i)=>{ const g=r.pk?r.pk.g:null, l=runs[runs.length-1];
+    if(l && l.g===g) l.to=i; else runs.push({g,from:i,to:i}); });
+  return {id:'packBands',
+    beforeDatasetsDraw(ch){
+      if(!runs.some(r=>r.g!=null)) return;
+      const {ctx,chartArea:ca,scales:{x}}=ch, half=(x.getPixelForValue(1)-x.getPixelForValue(0))/2||20;
+      ctx.save();
+      runs.forEach((r,k)=>{ if(r.g==null) return;
+        const p=PACKS[r.g%PACKS.length], base=r.g===0?'#7b8aa1':p[1];   // Whites' own colour is near-white
+        const x0=Math.max(ca.left,x.getPixelForValue(r.from)-half), x1=Math.min(ca.right,x.getPixelForValue(r.to)+half);
+        ctx.fillStyle=hexA(base,k%2?.075:.05); ctx.fillRect(x0+1,ca.top,x1-x0-2,ca.bottom-ca.top);
+      });
+      ctx.restore();
+    }};
+}
+function opxCharts(rows,conv){
+  const el=document.getElementById('opx-oi'); if(!el) return;
+  const labels=rows.map(r=>shortName(r.ct)), cols=rows.map(r=>r.sig?SIG[r.sig].col:'#d7dce5');
+  const oi=rows.map(r=>r.dOI), px=rows.map(r=>r.dPx), [yo,yp]=opxAxes(oi,px);
+  const tipCb={title:items=>items.length?rows[items[0].dataIndex].ct+(rows[items[0].dataIndex].pk?' · '+rows[items[0].dataIndex].pk.label:''):'',
+    label:x=>{ if(x.datasetIndex) return null; const r=rows[x.dataIndex];
+      return ['  Δ OI  '+fmtSigned(r.dOI)+(r.pc==null?'':'  ('+fmtHmPct(r.pc)+'%)'),
+      '  Δ Px  '+fmtPx(r.dPx,conv)+' '+conv.unit, ...(r.vol!=null?['  Volume  '+fmtOI(r.vol)]:[]),
+      '  '+(r.sig?sigLabel(r.sig,conv):'—')]; }};
+  const tickFont={size:10.5,family:'Inter,"Segoe UI",system-ui,sans-serif'};
+  S.charts.push(new Chart(el.getContext('2d'),{
+    data:{labels,datasets:[
+      {type:'bar',data:oi,yAxisID:'y',backgroundColor:cols,hoverBackgroundColor:cols.map(c=>hexA(c,.85)),
+        borderRadius:5,borderSkipped:'start',categoryPercentage:.78,barPercentage:.88,order:2},
+      {type:'line',data:px,yAxisID:'y1',borderColor:'#1b2c47',borderWidth:2.25,tension:.3,cubicInterpolationMode:'monotone',spanGaps:true,order:1,
+        pointRadius:4,pointBackgroundColor:'#1b2c47',pointBorderColor:'#fff',pointBorderWidth:2,
+        pointHoverRadius:6,pointHoverBorderWidth:2.5}]},
+    plugins:[opxPackBands(rows)],
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      layout:{padding:{top:6,right:4,left:2,bottom:0}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},
+        tooltip:{backgroundColor:'rgba(23,35,59,.72)',titleColor:'#fff',bodyColor:'#eef3fa',padding:{top:9,bottom:9,left:11,right:11},
+          cornerRadius:8,titleFont:{size:12,weight:'700'},bodyFont:{size:11.5},displayColors:false,
+          filter:x=>x.datasetIndex===0,callbacks:tipCb}},
+      scales:{x:{grid:{display:false},border:{display:false},
+          ticks:{color:'#43536e',font:{...tickFont,weight:'600'},autoSkip:false,maxRotation:0,padding:6,
+          callback(v){ return labels.length>24&&v%2?'':labels[v]; }}},
+        y:{position:'left',min:yo.min,max:yo.max,
+          grid:{color:cx=>cx.tick&&cx.tick.value===0?'#8d9bb1':'rgba(27,44,71,.07)',lineWidth:cx=>cx.tick&&cx.tick.value===0?1.25:1},
+          border:{display:false},
+          title:{display:true,text:'Δ OI (contracts)',color:'#7b8aa1',font:{size:10.5,weight:'700'}},
+          ticks:{stepSize:yo.step,color:'#7b8aa1',font:tickFont,padding:6,callback:v=>v===0?'0':fmtSigned(v)}},
+        y1:{position:'right',min:yp.min,max:yp.max,grid:{drawOnChartArea:false},border:{display:false},
+          title:{display:true,text:'Δ Price ('+conv.unit+')',color:'#1b2c47',font:{size:10.5,weight:'700'}},
+          ticks:{stepSize:yp.step,color:'#1b2c47',font:tickFont,padding:6,callback:v=>v===0?'0':fmtPx(+v,conv)}}}}}));
 }
 
 /* ============================ TOOLTIPS ============================ */

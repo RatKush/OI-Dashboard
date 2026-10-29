@@ -151,6 +151,7 @@ input[type=file]{display:none}
           <tr><td>Markets</td><td id="pv-mkts">—</td></tr>
           <tr><td>Contracts</td><td id="pv-contracts">—</td></tr>
           <tr><td>Market list</td><td id="pv-list">—</td></tr>
+          <tr><td>Prices · volume</td><td id="pv-side">—</td></tr>
         </table>
       </div>
 
@@ -260,6 +261,18 @@ async function check(f){
     $('#pv-mkts').textContent=p.markets_count;
     $('#pv-contracts').textContent=p.contracts_count;
     $('#pv-list').textContent=(p.markets||[]).join(', ');
+    // Chg OI vs Chg Price needs a <market>_prices_0 sheet on the same date as the OI; flag any that is behind
+    const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const side=p.side||[], ok=[], warn=[], none=[];
+    side.forEach(s=>{
+      if(!s.prices){ none.push(s.market); return; }
+      const v=s.volume?(s.volume===s.oi?' +vol':' +vol '+s.volume+' ⚠'):'';
+      (s.prices===s.oi?ok:warn).push(s.market+' '+s.prices+(s.prices===s.oi?'':' ⚠ (OI '+s.oi+')')+v);
+    });
+    $('#pv-side').innerHTML=[ok.length?'✓ '+esc(ok.join(' · ')):'',
+      warn.length?'<span style="color:#b26a00">'+esc(warn.join(' · '))+'</span>':'',
+      none.length?'<span style="color:var(--muted);font-weight:600">no price sheet: '+esc(none.join(', '))+'</span>':'']
+      .filter(Boolean).join('<br>')||'—';
     $('#d-pre').textContent='· '+p.latest_date; $('#d-final').textContent='· '+p.latest_date;
     $('#preview').classList.add('show'); $('#actions').classList.add('show');
     pubBtns().forEach(b=>b.disabled=false);

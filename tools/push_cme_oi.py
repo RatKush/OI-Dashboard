@@ -31,6 +31,7 @@ MARKETS = ('SR3', 'FF')
 # together, which is the number the Bloomberg workbook carries (checked against CME 15/10 and 16/10)
 TREASURIES = {'ZT': 'US 2 YEAR TREASURY', 'ZF': 'US 5 YEAR TREASURY', 'ZN': 'US 10 YEAR TREASURY',
               'TN': 'US 10 YEAR ULTRA TREASURY', 'ZB': 'US 30 YEAR TREASURY', 'UB': 'US 30 YEAR ULTRA TREASURY'}
+SIDE_SESSIONS = 5   # settles / volumes sent for the newest sessions only (Chg OI vs Chg Price needs two)
 STATE = HERE / '.last_push.json'   # generated_at of the last feed pushed, per target URL
 LOG = HERE / 'push_cme_oi.log'
 
@@ -45,8 +46,9 @@ def log(msg):
 def build_payload(manifest):
     """{market: {'dd/mm/yy': {contract: oi}}}, keyed by oi_date - the session the OI belongs to,
     which is the date Bloomberg's workbook uses for the same number - plus each session's pass
-    in reports: {market: {'dd/mm/yy': 'Preliminary' | 'Final'}}."""
-    markets, reports = {}, {}
+    in reports: {market: {'dd/mm/yy': 'Preliminary' | 'Final'}}, and the newest sessions' settles
+    and volumes in prices / volumes, same shape as markets."""
+    markets, reports, prices, volumes = {}, {}, {}, {}
     for m in MARKETS:
         df = oi.load(m)
         df = df[df.open_interest > 0]
@@ -54,6 +56,11 @@ def build_payload(manifest):
                       for d, g in df.groupby('oi_date')}
         reports[m] = {d.strftime('%d/%m/%y'): 'Final' if (g.report_type == 'Final').all() else 'Preliminary'
                       for d, g in df.groupby('oi_date')}
+        recent = df[df.oi_date.isin(sorted(df.oi_date.unique())[-SIDE_SESSIONS:])]
+        for out, col in ((prices, 'settle'), (volumes, 'volume')):
+            x = recent.dropna(subset=[col])
+            out[m] = {d.strftime('%d/%m/%y'): {c: float(v) for c, v in zip(g.contract, g[col])}
+                      for d, g in x.groupby('oi_date')}
     df = oi.load()
     df = df[df.market.isin(list(TREASURIES)) & (df.open_interest > 0)].sort_values('contract_month')
     first2 = df.groupby(['oi_date', 'market']).head(2)
@@ -66,7 +73,8 @@ def build_payload(manifest):
         rep[k] = 'Final' if (g.report_type == 'Final').all() else 'Preliminary'
     if tsy:
         markets['treasuries'], reports['treasuries'] = tsy, rep
-    return {'generated_at': manifest['generated_at'], 'markets': markets, 'reports': reports}
+    return {'generated_at': manifest['generated_at'], 'markets': markets, 'reports': reports,
+            'prices': prices, 'volumes': volumes}
 
 
 def main():

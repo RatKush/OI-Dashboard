@@ -10,7 +10,7 @@ OI Profile Dashboard — Flask Server
   GET  /admin/logout          → clear session
 """
 
-import os, json, hashlib, secrets, re, struct, zlib
+import os, json, hashlib, secrets, re, struct, zlib, gzip
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from flask import (Flask, request, jsonify, session,
@@ -95,11 +95,78 @@ def to_display_date(v):
         return f"{m.group(3)}/{m.group(2)}/{m.group(1)[-2:]}"
     return s
 
+def _parse_sheet(ws, sn):
+    """One market grid: 'Dates' header row, then one row per contract.  Returns (dates, contracts, data)
+    or None when the sheet has no such grid."""
+    raw = [list(row) for row in ws.iter_rows(values_only=True)]
+    if not raw or len(raw) < 3:
+        return None
+
+    # Drop column B (index 1) — mirrors the JS splice(1,1)
+    raw = [([r[0]] + list(r[2:])) if len(r) > 1 else list(r) for r in raw]
+
+    # Find header row (first cell == 'dates', case-insensitive)
+    header_row = -1
+    for i, row in enumerate(raw):
+        if row and row[0] is not None and str(row[0]).strip().lower() == 'dates':
+            header_row = i
+            break
+    if header_row == -1:
+        return None
+
+    hdr   = raw[header_row]
+    dates = []
+    for c in range(1, len(hdr)):
+        v = hdr[c]
+        if v is None or str(v).strip() == '':
+            continue
+        ds = to_display_date(v)
+        if ds:
+            dates.append(ds)
+    if not dates:
+        return None
+
+    contracts = []
+    data      = {}
+    for r in range(header_row + 1, len(raw)):
+        row = raw[r]
+        if not row or row[0] is None or str(row[0]).strip() == '':
+            continue
+        c_name = str(row[0]).strip()
+        if is_brazil_market(sn) and not is_brazil_contract(c_name):
+            continue
+        contracts.append(c_name)
+        data[c_name] = {}
+        for ci, date_str in enumerate(dates):
+            val = row[ci + 1] if ci + 1 < len(row) else None
+            if val is not None and val != '':
+                try:
+                    data[c_name][date_str] = float(val)
+                except (ValueError, TypeError):
+                    data[c_name][date_str] = None
+            else:
+                data[c_name][date_str] = None
+    return dates, contracts, data
+
+# Settles and volumes for the Δ OI vs Δ Price view: a sheet '<market>_prices_0' / '<market>_volume_0'
+# laid out exactly like the market's OI sheet (same contract labels, same date columns).
+# The view compares two sessions, so only the newest few dates are kept (room to skip a not-yet-updated column).
+SIDE_SHEETS = {'prices': '_prices_0', 'volume': '_volume_0'}
+SIDE_KEEP   = 5
+
+def _keep_newest(side, n=SIDE_KEEP):
+    """{contract: {date: v}} cut to the n newest real dates present."""
+    dates = {d for vals in side.values() for d in vals if _ddmmyy_key(d)}
+    keep = set(sorted(dates, key=_ddmmyy_key, reverse=True)[:n])
+    return {c: {d: v for d, v in vals.items() if d in keep} for c, vals in side.items()}
+
 def parse_workbook(filepath):
     """
     Parse xlsx workbook into dashboard payload.
     Returns dict: { markets, market_order, updated_at, latest_date,
                     markets_count, contracts_count }
+    A market with a prices / volume sheet also carries
+    prices / volume: {contract: {date: value}} and prices_dates / volume_dates.
     """
     wb = load_workbook(filepath, data_only=True, read_only=True)
     markets      = {}
@@ -109,58 +176,13 @@ def parse_workbook(filepath):
     for sn in wb.sheetnames:
         if sn.endswith('_0'):
             continue
-        ws  = wb[sn]
-        raw = [list(row) for row in ws.iter_rows(values_only=True)]
-        if not raw or len(raw) < 3:
+        grid = _parse_sheet(wb[sn], sn)
+        if not grid:
             continue
-
-        # Drop column B (index 1) — mirrors the JS splice(1,1)
-        raw = [([r[0]] + list(r[2:])) if len(r) > 1 else list(r) for r in raw]
-
-        # Find header row (first cell == 'dates', case-insensitive)
-        header_row = -1
-        for i, row in enumerate(raw):
-            if row and row[0] is not None and str(row[0]).strip().lower() == 'dates':
-                header_row = i
-                break
-        if header_row == -1:
-            continue
-
-        hdr   = raw[header_row]
-        dates = []
-        for c in range(1, len(hdr)):
-            v = hdr[c]
-            if v is None or str(v).strip() == '':
-                continue
-            ds = to_display_date(v)
-            if ds:
-                dates.append(ds)
-        if not dates:
-            continue
+        dates, contracts, data = grid
 
         if global_latest is None or dates[0] > global_latest:
             global_latest = dates[0]
-
-        contracts = []
-        data      = {}
-        for r in range(header_row + 1, len(raw)):
-            row = raw[r]
-            if not row or row[0] is None or str(row[0]).strip() == '':
-                continue
-            c_name = str(row[0]).strip()
-            if is_brazil_market(sn) and not is_brazil_contract(c_name):
-                continue
-            contracts.append(c_name)
-            data[c_name] = {}
-            for ci, date_str in enumerate(dates):
-                val = row[ci + 1] if ci + 1 < len(row) else None
-                if val is not None and val != '':
-                    try:
-                        data[c_name][date_str] = float(val)
-                    except (ValueError, TypeError):
-                        data[c_name][date_str] = None
-                else:
-                    data[c_name][date_str] = None
 
         if not contracts:
             continue
@@ -169,6 +191,18 @@ def parse_workbook(filepath):
             contracts = contracts[:cap]
         markets[sn]      = {'contracts': contracts, 'dates': dates, 'data': data}
         market_order.append(sn)
+
+    by_lower = {s.lower(): s for s in wb.sheetnames}
+    for sn, mk in markets.items():
+        for key, suffix in SIDE_SHEETS.items():
+            side = by_lower.get((sn + suffix).lower())
+            grid = _parse_sheet(wb[side], sn) if side else None
+            if not grid:
+                continue
+            sdates, _, sdata = grid
+            mk[key] = _keep_newest({c: sdata[c] for c in mk['contracts'] if c in sdata})
+            kept = {d for vals in mk[key].values() for d in vals}
+            mk[key + '_dates'] = [d for d in sdates if d in kept]
 
     wb.close()
     total_contracts = sum(len(m['contracts']) for m in markets.values())
@@ -315,6 +349,23 @@ def apply_cme(current, cme):
                          'cme_dates': len(cme_dates)}
         if newest in rows:   # CME's pass for that session: Preliminary until its Final is out
             sources[name]['report'] = (cme or {}).get('reports', {}).get(name, {}).get(newest, 'Final')
+    # CME settles / volumes win over the workbook's prices / volume sheets on the sessions CME has;
+    # either way only the newest SIDE_KEEP dates go out (also trims a workbook published before the cut)
+    for key, ckey in (('prices', 'prices'), ('volume', 'volumes')):
+        cme_side = (cme or {}).get(ckey, {})
+        for name in current.get('market_order', []):
+            mk = out['markets'].get(name)
+            rows = cme_side.get(name)
+            if not mk or not (rows or mk.get(key)):
+                continue
+            side = {c: dict(v) for c, v in mk.get(key, {}).items()}
+            for d, vals in (rows or {}).items():
+                for c in mk.get('contracts', []):
+                    if c in vals:
+                        side.setdefault(c, {})[d] = vals[c]
+            out['markets'][name] = dict(mk, **{key: _keep_newest(side)})
+            if rows:
+                sources.setdefault(name, {})[key] = 'CME'
     out['sources'] = sources
     # newest session of any market and source - what the share title and the Live/Stale dot show;
     # latest_date stays the workbook's, which Pre vs Final matches its snapshots against
@@ -485,16 +536,52 @@ def sitemap():
 """
     return Response(xml, mimetype='application/xml')
 
+def _data_etag():
+    """Changes whenever the published workbook data or the CME store is rewritten."""
+    parts = []
+    for p in (DATA_FILE, CME_FILE):
+        st = os.stat(p) if os.path.exists(p) else None
+        parts.append(f'{st.st_mtime_ns}-{st.st_size}' if st else '0')
+    return hashlib.sha1('|'.join(parts).encode()).hexdigest()[:20]
+
 @app.route('/api/dashboard-data')
 def api_dashboard_data():
-    data = load_current()
-    if data is None:
-        return jsonify({'error': 'No data published yet'}), 404
-    return jsonify(apply_cme(data, load_cme()))
+    # the dashboard polls every 5 min but the data changes a few times a day: answer "not modified"
+    # (no body) while neither file has changed; the browser then reuses its copy
+    tag = _data_etag()
+    if request.if_none_match.contains_weak(tag):
+        resp = Response(status=304)
+    else:
+        data = load_current()
+        if data is None:
+            return jsonify({'error': 'No data published yet'}), 404
+        resp = jsonify(apply_cme(data, load_cme()))
+    resp.set_etag(tag, weak=True)   # weak: the same data may go out gzipped or not
+    resp.headers['Cache-Control'] = 'no-cache'   # always revalidate, never serve stale without asking
+    return resp
+
+GZIP_TYPES = ('application/json', 'text/html', 'application/xml')
+
+@app.after_request
+def gzip_response(resp):
+    """Compress JSON / HTML for browsers that accept it (dashboard data ~4x smaller)."""
+    if (resp.status_code != 200 or resp.direct_passthrough or 'Content-Encoding' in resp.headers
+            or resp.mimetype not in GZIP_TYPES
+            or 'gzip' not in request.headers.get('Accept-Encoding', '').lower()):
+        return resp
+    body = resp.get_data()
+    if len(body) < 1024:
+        return resp
+    resp.set_data(gzip.compress(body, compresslevel=6))
+    resp.headers['Content-Encoding'] = 'gzip'
+    resp.headers['Content-Length'] = str(len(resp.get_data()))
+    resp.vary.add('Accept-Encoding')
+    return resp
 
 @app.route('/api/cme-oi', methods=['POST'])
 def api_cme_oi():
-    """CME OI from tools/push_cme_oi.py.  Body: {generated_at, markets: {SR3: {'dd/mm/yy': {contract: oi}}}}.
+    """CME OI from tools/push_cme_oi.py.  Body: {generated_at, markets: {SR3: {'dd/mm/yy': {contract: oi}}},
+    reports, and optionally prices / volumes in the same shape as markets (last few sessions only).
     Replaces the stored rows per market sent (the feed always carries its full history)."""
     if not CME_PUSH_TOKEN:
         return jsonify({'error': 'CME push is not enabled on this server (CME_PUSH_TOKEN unset)'}), 503
@@ -518,9 +605,21 @@ def api_cme_oi():
         return jsonify({'error': 'No markets in payload'}), 400
     reports = {m: {d: ('Preliminary' if t == 'Preliminary' else 'Final') for d, t in r.items() if _ddmmyy_key(d)}
                for m, r in (body.get('reports') or {}).items() if m in clean and isinstance(r, dict)}
+    # settles and volumes of the last few sessions, same shape as markets (optional; older pushers omit them)
+    side = {}
+    for key in ('prices', 'volumes'):
+        side[key] = {}
+        for name, rows in (body.get(key) or {}).items():
+            if name not in clean or not isinstance(rows, dict):
+                continue
+            side[key][name] = {d: {str(c)[:40]: float(v) for c, v in vals.items()
+                                   if isinstance(v, (int, float)) and not isinstance(v, bool)}
+                               for d, vals in rows.items() if _ddmmyy_key(d) and isinstance(vals, dict)}
     stored = load_cme() or {'markets': {}}
     stored['markets'].update(clean)
     stored.setdefault('reports', {}).update(reports)
+    for key, rows in side.items():
+        stored.setdefault(key, {}).update(rows)
     stored['generated_at'] = str(body.get('generated_at', ''))[:40]
     stored['pushed_at'] = datetime.utcnow().isoformat() + 'Z'
     tmp = CME_FILE + '.tmp'
@@ -641,6 +740,12 @@ def admin_upload():
             'contracts_count': parsed['contracts_count'],
             'latest_date':     parsed['latest_date'],
             'markets':         parsed['market_order'],
+            # per market: newest date of its OI sheet and of its prices / volume sheets (None = no sheet)
+            'side':            [{'market': m,
+                                 'oi': parsed['markets'][m]['dates'][0],
+                                 'prices': (parsed['markets'][m].get('prices_dates') or [None])[0],
+                                 'volume': (parsed['markets'][m].get('volume_dates') or [None])[0]}
+                                for m in parsed['market_order']],
         },
         'temp_file': fname,
     })
